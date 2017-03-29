@@ -27,12 +27,13 @@ classdef PLG
         latticeStructure;
     end
     properties (Access = protected)
-        filterSpec = {'*.stl','3D geometry file';...
+        validExtensions  = {'xls'; 'csv'; 'custom'};
+        filterSpecOut = {'*.stl','3D geometry file';...
             '*.bdf','Nastran input file';...
             '*.inp','Abaqus input file';...
             '*.bin','Binary storage file';...
-            '*.xls','Excel format';
-            '*.custom','Custom format for debug etc'};
+            '*.xls','Excel format';...
+            '*.custom','Custom csv format for debug etc'};
         strutureType;
     end
     methods
@@ -41,10 +42,11 @@ classdef PLG
             switch numel(varargin)
                 case 0
                     % no input no good
-                    error('zero inputs is not an option for the PLG class use a suitable INI file to generate the desired structure');
+                    error('zero inputs is not an option for the PLG class');
                 case 1
                     % custom lattice with input as a structure of nodes and
                     % connections
+                    obj = loadIn(obj,varargin{1});
                     obj.strutureType = 0;
                 case 14
                     %input order same as properties order
@@ -54,7 +56,7 @@ classdef PLG
                     if varargin{4}==1
                         obj.sphereDiameter = varargin{5};
                     else
-                        obj.sphereDiameter = [];
+                        obj.sphereDiameter = 0;
                     end
                     
                     obj.usx = varargin{6};
@@ -69,7 +71,7 @@ classdef PLG
                     
                     obj.strutureType = 1;
                 otherwise
-                    error('Incorrect number of inputs @latticeOptions class to generate the required inputs');
+                    error('Incorrect number of inputs');
             end
         end
         function obj = latticeGenerate(obj)
@@ -147,6 +149,85 @@ classdef PLG
             end
             faces = unique(faces,'rows');
         end
+        function obj = loadIn(obj,file)
+            parts = strsplit(file,'.');
+            extension = parts{end};
+            switch extension
+                case obj.validExtensions{1}
+                    % xls
+                    error('TODO');
+                case obj.validExtensions{2}
+                    % csv
+                    data = csvread(file);
+                    numNodes=data(1,1);
+                    numLinks=data(2,1);
+                    % data
+                    obj.latticeStructure.vertices = data(3:numNodes+2,1:3);
+                    
+                    obj.latticeStructure.faces    = data(numNodes+3:numNodes+numLinks+2,1:2);
+                    obj.latticeStructure.diameters = data(numNodes+3:numNodes+numLinks+2,3);
+                    if size(data,2)==3
+                        % no sphere diameter supplied
+                        obj.latticeStructure.spheres = zeros(numNodes,1);
+                    else
+                        % sphere diameter supplied
+                        obj.latticeStructure.spheres = data(3:numNodes+2,4);
+                    end
+                case obj.validExtensions{3}
+                    % custom
+                    data = csvread(file);
+                    numNodes=data(1,1);
+                    numLinks=data(2,1);
+                    % data
+                    obj.latticeStructure.vertices = data(3:numNodes+2,1:3);
+                    obj.latticeStructure.faces    = data(numNodes+3:numNodes+numLinks+2,1:2);
+                    obj.latticeStructure.diameters = data(numNodes+3:numNodes+numLinks+2,3);
+                    if size(data,2)==3
+                        % no sphere diameter supplied
+                        obj.latticeStructure.spheres = zeros(numNodes,1);
+                    else
+                        % sphere diameter supplied
+                        obj.latticeStructure.spheres = data(3:numNodes+2,4);
+                    end
+            end
+        end
+        function obj = translate(obj,x,y,z)
+            obj.latticeStructure.vertices(:,1) = obj.latticeStructure.vertices(:,1)+x;
+            obj.latticeStructure.vertices(:,2) = obj.latticeStructure.vertices(:,2)+y;
+            obj.latticeStructure.vertices(:,3) = obj.latticeStructure.vertices(:,3)+z;
+        end
+        function obj = rotate(obj,wx,wy,wz)
+            % rotations are in degrees about the main axes
+            thetaX = wx*pi/180;
+            thetaY = wy*pi/180;
+            thetaZ = wz*pi/180;
+            % rotation matricies
+            rx = [1           , 0          ,           0;...
+                  0           , cos(thetaX),-sin(thetaX);...
+                  0           , sin(thetaX), cos(thetaX)];
+              
+            ry = [cos(thetaY) ,0           , sin(thetaY);...
+                  0           ,1           ,0           ;...
+                  -sin(thetaY),0           , cos(thetaY)];
+              
+            rz = [cos(thetaZ) ,-sin(thetaZ),           0;...
+                  sin(thetaZ) , cos(thetaZ),           0;...
+                  0           ,0           ,           1]; 
+              
+            %rotation x then y then zsplit for debugging
+            numPoints = length(obj.latticeStructure.vertices);
+            newPoints = zeros(size(obj.latticeStructure.vertices));
+            for inc = 1:numPoints
+                newPoints(inc,:) = obj.latticeStructure.vertices(inc,:)*rx';
+            end
+            for inc = 1:numPoints
+                
+            end
+            for inc = 1:numPoints
+                
+            end
+            obj.latticeStructure.vertices = newPoints;
+        end
         function plot(obj)
             % plot the lattice
             f = figure;
@@ -170,7 +251,7 @@ classdef PLG
         function save(obj)
             % this overloads the save function and allows saving out in various
             % formats however this only saves the latticeStructure structure
-            [fileName,pathName,filterIndex] = uiputfile(obj.filterSpec);
+            [fileName,pathName,filterIndex] = uiputfile(obj.filterSpecOut);
             switch filterIndex
                 case 1
                     % stl
@@ -255,36 +336,14 @@ classdef PLG
             
             numNodes=size(obj.latticeStructure.vertices,1);
             numLinks=size(obj.latticeStructure.faces,1);
-            xlswrite(fullName,numNodes,'Sheet1','A1');
-            xlswrite(fullName,numLinks,'Sheet1','A2');
             
-            locationVertices=strcat('A3:C',num2str(numNodes+2));
-            xlswrite(fullName,obj.latticeStructure.vertices,'Sheet1',locationVertices);
-            locationFaces=strcat('A',num2str(numNodes+3),':B',num2str(numNodes+2+numLinks));
-            xlswrite(fullName,obj.latticeStructure.faces,'Sheet1',locationFaces);
+            dlmwrite(fullName,numNodes);
+            dlmwrite(fullName,numLinks,'-append');
+            data = [obj.latticeStructure.vertices,obj.latticeStructure.spheres];
+            dlmwrite(fullName,data,'-append');
             
-            % optional write depending on load type
-            if obj.strutureType ==0
-                % loaded custom
-                locationSpheres = strcat('D3:D',num2str(numNodes+2));
-                xlswrite(fullName,obj.latticeStructure.spheres,'Sheet1',locationSpheres);
-                locationDiameters = strcat('C',num2str(numNodes+3),':C',num2str(numNodes+2+numLinks));
-                xlswrite(fullName,obj.latticeStructure.diameters,'Sheet1',locationDiameters);
-            else
-                % loaded regular
-                if ~isempty(obj.sphereDiameter)
-                    locationSpheres = strcat('D3:D',num2str(numNodes+2));
-                    data = ones(numNodes,1)*obj.sphereDiameter;
-                    xlswrite(fullName,data,'Sheet1',locationSpheres);
-                else
-                    locationSpheres = strcat('D3:D',num2str(numNodes+2));
-                    data = ones(numNodes,1)*0;
-                    xlswrite(fullName,data,'Sheet1',locationSpheres);
-                end
-                locationDiameters = strcat('C',num2str(numNodes+3),':C',num2str(numNodes+2+numLinks));
-                data = ones(numLinks,1)*obj.strutDiamter;
-                xlswrite(fullName,data,'Sheet1',locationDiameters);
-            end
+            data = [obj.latticeStructure.faces,obj.latticeStructure.diameters];
+            dlmwrite(fullName,data,'-append');
         end
     end
     methods (Static) % non cell type methods
