@@ -196,6 +196,29 @@ classdef PLG
             obj.latticeStructure.vertices(:,2) = obj.latticeStructure.vertices(:,2)+y;
             obj.latticeStructure.vertices(:,3) = obj.latticeStructure.vertices(:,3)+z;
         end
+        function obj = cleanLattice(obj)
+            % cleans the lattice structure including the removal of
+            % duplicate vertices and struts
+            % remove duplicate faces
+            for inc = 1:length(obj.latticeStructure.faces)
+                ind1 = obj.latticeStructure.faces(inc,1);
+                ind2 = obj.latticeStructure.faces(inc,2);
+                if ind1<=ind2
+                    % faces(inc,1) = ind1;
+                    % faces(inc,2) = ind2;
+                    % no change
+                else
+                    obj.latticeStructure.faces(inc,1) = ind2;
+                    obj.latticeStructure.faces(inc,2) = ind1;
+                end
+            end
+            [obj.latticeStructure.faces,i,j] = unique(obj.latticeStructure.faces,'rows');
+            obj.latticeStructure.diameters = obj.latticeStructure.diameters(i);
+            
+            [obj.latticeStructure.vertices,i,indexn]=unique(obj.latticeStructure.vertices,'rows');
+            obj.latticeStructure.spheres = obj.latticeStructure.spheres(i);
+            obj.latticeStructure.faces = indexn(obj.latticeStructure.faces);
+        end
         function obj = rotate(obj,wx,wy,wz)
             % rotations are in degrees about the main axes
             thetaX = wx*pi/180;
