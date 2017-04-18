@@ -14,6 +14,9 @@ classdef PLG
         strutDiamter;
         % sphereAddition;
         sphereDiameter;
+        vertices;
+        faces;
+        
         usx;
         usy;
         usz;
@@ -23,8 +26,6 @@ classdef PLG
         orginx;
         orginy;
         orginz;
-        
-        latticeStructure;
     end
     properties (Access = protected)
         validExtensions  = {'xls'; 'csv'; 'custom'};
@@ -69,7 +70,8 @@ classdef PLG
                     obj.orginy = varargin{13};
                     obj.orginz = varargin{14};
                     
-                    obj.strutureType = 1;
+                    obj = latticeGenerate(obj); % generate structure
+                    obj = addDiams(obj); % apply diameters to each sphere ans trut in the structure
                 otherwise
                     error('Incorrect number of inputs');
             end
@@ -79,38 +81,37 @@ classdef PLG
             origin = [obj.orginx,obj.orginy,obj.orginz];
             switch obj.latticeType
                 case 'bcc' % BCC Cell
-                    [vertices, faces] = PLG.bcc(obj.usx,obj.usy,obj.usz,origin);
+                    [obj.vertices, obj.faces] = PLG.bcc(obj.usx,obj.usy,obj.usz,origin);
                 case 'bcc2' % BCC Cell with no cantilevers
-                    [vertices, faces] = PLG.bcc2(obj.usx,obj.usy,obj.usz,origin);
+                    [obj.vertices, obj.faces] = PLG.bcc2(obj.usx,obj.usy,obj.usz,origin);
                 case 'bcz' % BCC Cell
-                    [vertices, faces] = PLG.bcz(obj.usx,obj.usy,obj.usz,origin);
+                    [obj.vertices, obj.faces] = PLG.bcz(obj.usx,obj.usy,obj.usz,origin);
                 case 'fcc'
-                    [vertices, faces] = PLG.fcc(obj.usx,obj.usy,obj.usz,origin);
+                    [obj.vertices, obj.faces] = PLG.fcc(obj.usx,obj.usy,obj.usz,origin);
                 case 'fccNoXY'
-                    [vertices, faces] = PLG.fccNoXY(obj.usx,obj.usy,obj.usz,origin);
+                    [obj.vertices, obj.faces] = PLG.fccNoXY(obj.usx,obj.usy,obj.usz,origin);
                 case 'fbcxyz'
-                    [vertices, faces] = PLG.fbcxyz(obj.usx,obj.usy,obj.usz,origin);
+                    [obj.vertices, obj.faces] = PLG.fbcxyz(obj.usx,obj.usy,obj.usz,origin);
                 case 'fcz'
-                    [vertices, faces] = PLG.fcz(obj.usx,obj.usy,obj.usz,origin);
+                    [obj.vertices, obj.faces] = PLG.fcz(obj.usx,obj.usy,obj.usz,origin);
                 case 'fbcz'
-                    [vertices, faces] = PLG.fbcz(obj.usx,obj.usy,obj.usz,origin);
+                    [obj.vertices, obj.faces] = PLG.fbcz(obj.usx,obj.usy,obj.usz,origin);
                 case 'bcc_fcc'
-                    [vertices, faces] = PLG.bccFcc(obj.usx,obj.usy,obj.usz,origin);
+                    [obj.vertices, obj.faces] = PLG.bccFcc(obj.usx,obj.usy,obj.usz,origin);
                 case 'fbc'
-                    [vertices, faces] = PLG.fbc(obj.usx,obj.usy,obj.usz,origin);
+                    [obj.vertices, obj.faces] = PLG.fbc(obj.usx,obj.usy,obj.usz,origin);
                 case 'box'
-                    [vertices, faces] = PLG.box(obj.usx,obj.usy,obj.usz,origin);
+                    [obj.vertices, obj.faces] = PLG.box(obj.usx,obj.usy,obj.usz,origin);
             end
             % replicate the unit cells generated above
-            [obj.latticeStructure.vertices, obj.latticeStructure.faces] = cellReplication(obj,vertices,faces);
-            
-            
+            [obj.vertices, obj.faces] = cellReplication(obj);
+
         end
-        function [vertices, faces] = cellReplication(obj,vertices,faces)
+        function [vertices, faces] = cellReplication(obj)
             count = 1;
-            no_nodes=size(vertices,1);
-            node_connect=size(faces,1);
-            no_links=max(faces);
+            no_nodes=size(obj.vertices,1);
+            node_connect=size(obj.faces,1);
+            no_links=max(obj.faces);
             no_links=max(no_links);
             vert_blank=zeros(obj.repsx*obj.repsy*obj.repsz*(no_nodes),3); %prealocate arrays
             face_blank=zeros(obj.repsx*obj.repsy*obj.repsz*node_connect,2); %prealocate arrays
@@ -119,13 +120,13 @@ classdef PLG
             %completion notification
             for i=0:obj.repsx-1
                 %completion notification
-                vert_add(:,1)=vertices(:,1)+i*obj.usx;
+                vert_add(:,1)=obj.vertices(:,1)+i*obj.usx;
                 for j=0:obj.repsy-1
-                    vert_add(:,2)=vertices(:,2)+j*obj.usy;
+                    vert_add(:,2)=obj.vertices(:,2)+j*obj.usy;
                     for k=0:obj.repsz-1
-                        vert_add(:,3)=vertices(:,3)+k*obj.usz;
+                        vert_add(:,3)=obj.vertices(:,3)+k*obj.usz;
                         vert_blank((count-1)*no_nodes+1:((count)*no_nodes),:)=vert_add;
-                        face_blank((count-1)*node_connect+1:((count)*node_connect),:)=faces+(count-1)*(no_links);
+                        face_blank((count-1)*node_connect+1:((count)*node_connect),:)=obj.faces+(count-1)*(no_links);
                         count=count+1;
                     end
                 end
@@ -149,6 +150,14 @@ classdef PLG
             end
             faces = unique(faces,'rows');
         end
+        function obj = addDiams(obj)
+            % add both sphere and strut diameters
+            numNodes = size(obj.vertices,1);
+            numStruts = size(obj.faces,1);
+            
+            obj.sphereDiameter = ones(numNodes,1)*obj.sphereDiameter;
+            obj.strutDiamter = ones(numStruts,1)*obj.strutDiamter;
+        end
         function obj = loadIn(obj,file)
             parts = strsplit(file,'.');
             extension = parts{end};
@@ -162,16 +171,16 @@ classdef PLG
                     numNodes=data(1,1);
                     numLinks=data(2,1);
                     % data
-                    obj.latticeStructure.vertices = data(3:numNodes+2,1:3);
+                    obj.vertices = data(3:numNodes+2,1:3);
                     
-                    obj.latticeStructure.faces    = data(numNodes+3:numNodes+numLinks+2,1:2);
-                    obj.latticeStructure.diameters = data(numNodes+3:numNodes+numLinks+2,3);
+                    obj.faces    = data(numNodes+3:numNodes+numLinks+2,1:2);
+                    obj.strutDiameter = data(numNodes+3:numNodes+numLinks+2,3);
                     if size(data,2)==3
                         % no sphere diameter supplied
-                        obj.latticeStructure.spheres = zeros(numNodes,1);
+                        obj.sphereDiameter = zeros(numNodes,1);
                     else
                         % sphere diameter supplied
-                        obj.latticeStructure.spheres = data(3:numNodes+2,4);
+                        obj.sphereDiameter = data(3:numNodes+2,4);
                     end
                 case obj.validExtensions{3}
                     % custom
@@ -179,45 +188,45 @@ classdef PLG
                     numNodes=data(1,1);
                     numLinks=data(2,1);
                     % data
-                    obj.latticeStructure.vertices = data(3:numNodes+2,1:3);
-                    obj.latticeStructure.faces    = data(numNodes+3:numNodes+numLinks+2,1:2);
-                    obj.latticeStructure.diameters = data(numNodes+3:numNodes+numLinks+2,3);
+                    obj.vertices = data(3:numNodes+2,1:3);
+                    obj.faces    = data(numNodes+3:numNodes+numLinks+2,1:2);
+                    obj.diameters = data(numNodes+3:numNodes+numLinks+2,3);
                     if size(data,2)==3
                         % no sphere diameter supplied
-                        obj.latticeStructure.spheres = zeros(numNodes,1);
+                        obj.sphereDiameter = zeros(numNodes,1);
                     else
                         % sphere diameter supplied
-                        obj.latticeStructure.spheres = data(3:numNodes+2,4);
+                        obj.sphereDiameter = data(3:numNodes+2,4);
                     end
             end
         end
         function obj = translate(obj,x,y,z)
-            obj.latticeStructure.vertices(:,1) = obj.latticeStructure.vertices(:,1)+x;
-            obj.latticeStructure.vertices(:,2) = obj.latticeStructure.vertices(:,2)+y;
-            obj.latticeStructure.vertices(:,3) = obj.latticeStructure.vertices(:,3)+z;
+            obj.vertices(:,1) = obj.vertices(:,1)+x;
+            obj.vertices(:,2) = obj.vertices(:,2)+y;
+            obj.vertices(:,3) = obj.vertices(:,3)+z;
         end
         function obj = cleanLattice(obj)
             % cleans the lattice structure including the removal of
             % duplicate vertices and struts
             % remove duplicate faces
-            for inc = 1:length(obj.latticeStructure.faces)
-                ind1 = obj.latticeStructure.faces(inc,1);
-                ind2 = obj.latticeStructure.faces(inc,2);
+            for inc = 1:length(obj.faces)
+                ind1 = obj.faces(inc,1);
+                ind2 = obj.faces(inc,2);
                 if ind1<=ind2
                     % faces(inc,1) = ind1;
                     % faces(inc,2) = ind2;
                     % no change
                 else
-                    obj.latticeStructure.faces(inc,1) = ind2;
-                    obj.latticeStructure.faces(inc,2) = ind1;
+                    obj.faces(inc,1) = ind2;
+                    obj.faces(inc,2) = ind1;
                 end
             end
-            [obj.latticeStructure.faces,i,j] = unique(obj.latticeStructure.faces,'rows');
-            obj.latticeStructure.diameters = obj.latticeStructure.diameters(i);
+            [obj.faces,i,j] = unique(obj.faces,'rows');
+            obj.strutDiamter = obj.strutDiamter(i);
             
-            [obj.latticeStructure.vertices,i,indexn]=unique(obj.latticeStructure.vertices,'rows');
-            obj.latticeStructure.spheres = obj.latticeStructure.spheres(i);
-            obj.latticeStructure.faces = indexn(obj.latticeStructure.faces);
+            [obj.vertices,i,indexn]=unique(obj.vertices,'rows');
+            obj.sphereDiameter = obj.sphereDiameter(i);
+            obj.faces = indexn(obj.faces);
         end
         function obj = rotate(obj,wx,wy,wz)
             % rotations are in degrees about the main axes
@@ -238,10 +247,10 @@ classdef PLG
                   0           ,0           ,           1]; 
               
             %rotation x then y then zsplit for debugging
-            numPoints = length(obj.latticeStructure.vertices);
-            newPoints = zeros(size(obj.latticeStructure.vertices));
+            numPoints = length(obj.vertices);
+            newPoints = zeros(size(obj.vertices));
             for inc = 1:numPoints
-                newPoints(inc,:) = obj.latticeStructure.vertices(inc,:)*rx';
+                newPoints(inc,:) = obj.vertices(inc,:)*rx';
             end
             for inc = 1:numPoints
                 
@@ -249,7 +258,7 @@ classdef PLG
             for inc = 1:numPoints
                 
             end
-            obj.latticeStructure.vertices = newPoints;
+            obj.vertices = newPoints;
         end
         function plot(obj)
             % plot the lattice
@@ -262,8 +271,8 @@ classdef PLG
             axis vis3d
             a.NextPlot='add';
             
-            PLG.plotLine(obj.latticeStructure.vertices,obj.latticeStructure.faces);
-            PLG.plotPoints(obj.latticeStructure.vertices);
+            PLG.plotLine(obj.vertices,obj.faces);
+            PLG.plotPoints(obj.vertices);
             
             xlabel('x')
             ylabel('y')
@@ -300,8 +309,8 @@ classdef PLG
         function saveStl(obj,fileName,pathName)
             fullName = [pathName,fileName];
             numFacets=obj.resolution*4;%number of facets created for one strut
-            numLinks=size(obj.latticeStructure.faces,1);
-            numVertices=size(obj.latticeStructure.vertices,1);
+            numLinks=size(obj.faces,1);
+            numVertices=size(obj.vertices,1);
             strutFacets=numFacets*numLinks; %total number of facets for all the struts
             
             fid=fopen(fullName,'w');
@@ -309,34 +318,34 @@ classdef PLG
             
             if ~isempty(obj.sphereDiameter)
                 fwrite(fid,uint32(strutFacets+8^2*(8-1)*numVertices),'uint32'); %stl binary header file contains the total number of facets in the stl file
-                fid = PLG.ballCreate(obj.latticeStructure,obj.sphereDiameter/2,numVertices,fid);
+                fid = PLG.ballCreate(obj.vertices,obj.sphereDiameter/2,numVertices,fid);
             else
                 fwrite(fid,uint32(strutFacets),'uint32'); %stl binary header file contains the total number of facets in the stl file
             end
-            fid = PLG.faceCreate(obj.latticeStructure,obj.resolution,obj.strutDiamter/2,numLinks,fid);
+            fid = PLG.faceCreate(obj.vertices,obj.faces,obj.resolution,obj.strutDiamter/2,numLinks,fid);
             fclose(fid);
         end
         function saveExcel(obj,fileName,pathName)
             % saves data to an excel compatible format
             fullName = [pathName,fileName];
             
-            numNodes=size(obj.latticeStructure.vertices,1);
-            numLinks=size(obj.latticeStructure.faces,1);
+            numNodes=size(obj.vertices,1);
+            numLinks=size(obj.faces,1);
             xlswrite(fullName,numNodes,'Sheet1','A1');
             xlswrite(fullName,numLinks,'Sheet1','A2');
             
             locationVertices=strcat('A3:C',num2str(numNodes+2));
-            xlswrite(fullName,obj.latticeStructure.vertices,'Sheet1',locationVertices);
+            xlswrite(fullName,obj.vertices,'Sheet1',locationVertices);
             locationFaces=strcat('A',num2str(numNodes+3),':B',num2str(numNodes+2+numLinks));
-            xlswrite(fullName,obj.latticeStructure.faces,'Sheet1',locationFaces);
+            xlswrite(fullName,obj.faces,'Sheet1',locationFaces);
             
             % optional write depending on load type
             if obj.strutureType ==0
                 % loaded custom
                 locationSpheres = strcat('D3:D',num2str(numNodes+2));
-                xlswrite(fullName,obj.latticeStructure.spheres,'Sheet1',locationSpheres);
+                xlswrite(fullName,obj.spheres,'Sheet1',locationSpheres);
                 locationDiameters = strcat('C',num2str(numNodes+3),':C',num2str(numNodes+2+numLinks));
-                xlswrite(fullName,obj.latticeStructure.diameters,'Sheet1',locationDiameters);
+                xlswrite(fullName,obj.diameters,'Sheet1',locationDiameters);
             else
                 % loaded regular
                 if ~isempty(obj.sphereDiameter)
@@ -357,20 +366,20 @@ classdef PLG
             % saves data to an excel compatible format
             fullName = [pathName,fileName];
             
-            numNodes=size(obj.latticeStructure.vertices,1);
-            numLinks=size(obj.latticeStructure.faces,1);
+            numNodes=size(obj.vertices,1);
+            numLinks=size(obj.faces,1);
             
             dlmwrite(fullName,numNodes);
             dlmwrite(fullName,numLinks,'-append');
-            data = [obj.latticeStructure.vertices,obj.latticeStructure.spheres];
+            data = [obj.vertices,obj.sphereDiameter];
             dlmwrite(fullName,data,'-append');
             
-            data = [obj.latticeStructure.faces,obj.latticeStructure.diameters];
+            data = [obj.faces,obj.strutDiamter];
             dlmwrite(fullName,data,'-append');
         end
     end
     methods (Static) % non cell type methods
-        function  fid = ballCreate(latticeStructure,radius,numVertices,fid)
+        function  fid = ballCreate(vertices,radius,numVertices,fid)
             [x,y,z]=sphere(8); %create sphere with higher accuracy
             x=x(:);y=y(:);z=z(:); %reshape points
             ball.faces= convhull([x y z]); %create triangle links
@@ -378,7 +387,7 @@ classdef PLG
             ball.vertices=[x,y,z]; %store the points
             offset=ball.vertices*radius;
             for i=1:numVertices
-                target=[offset(:,1)+latticeStructure.vertices(i,1),offset(:,2)+latticeStructure.vertices(i,2),offset(:,3)+latticeStructure.vertices(i,3)];
+                target=[offset(:,1)+vertices(i,1),offset(:,2)+vertices(i,2),offset(:,3)+vertices(i,3)];
                 for j=1:sizer
                     %get values first end
                     facet_a=target(ball.faces(j,1),:);
@@ -394,7 +403,7 @@ classdef PLG
                 end
             end
         end
-        function fid = faceCreate(latticeStructure,resolution,radius,numLinks,fid)
+        function fid = faceCreate(vertices,faces,resolution,radius,numLinks,fid)
             numVertices=((resolution+1)*2); %number of points created for 1 strut
             
             %% create facets linking information
@@ -409,8 +418,8 @@ classdef PLG
             end2end1=[end1(:,2:3),end2(:,3)];
             
             for i=1:numLinks
-                point1=latticeStructure.vertices(latticeStructure.faces(i,1),:);
-                point2=latticeStructure.vertices(latticeStructure.faces(i,2),:);
+                point1=vertices(faces(i,1),:);
+                point2=vertices(faces(i,2),:);
                 separation=(point2-point1); %point1's vector normalised
                 u1=separation/norm(separation);
                 %create offset vector
