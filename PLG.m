@@ -8,7 +8,7 @@ classdef PLG
     %     10,10,15,0,0,0);
     % obj = latticeGenerate(obj);
     % save(obj);
-    properties (SetAccess=private)
+    properties (SetAccess=protected)
         latticeType;
         resolution;
         strutDiamter;
@@ -26,8 +26,7 @@ classdef PLG
         orginx;
         orginy;
         orginz;
-    end
-    properties (Access = protected)
+        
         validExtensions  = {'xls'; 'csv'; 'custom'};
         filterSpecOut = {'*.stl','3D geometry file';...
             '*.bdf','Nastran input file';...
@@ -71,7 +70,9 @@ classdef PLG
                     obj.orginz = varargin{14};
                     
                     obj = latticeGenerate(obj); % generate structure
-                    obj = addDiams(obj); % apply diameters to each sphere ans trut in the structure
+                    obj = cellReplication(obj); % replicate the unit cells generated above
+                    obj = addDiams(obj);
+                    obj = cleanLattice(obj); % remove duplicate lattice intersections and struts
                 otherwise
                     error('Incorrect number of inputs');
             end
@@ -103,52 +104,25 @@ classdef PLG
                 case 'box'
                     [obj.vertices, obj.faces] = PLG.box(obj.usx,obj.usy,obj.usz,origin);
             end
-            % replicate the unit cells generated above
-            [obj.vertices, obj.faces] = cellReplication(obj);
-
         end
-        function [vertices, faces] = cellReplication(obj)
-            count = 1;
-            no_nodes=size(obj.vertices,1);
-            node_connect=size(obj.faces,1);
-            no_links=max(obj.faces);
-            no_links=max(no_links);
-            vert_blank=zeros(obj.repsx*obj.repsy*obj.repsz*(no_nodes),3); %prealocate arrays
-            face_blank=zeros(obj.repsx*obj.repsy*obj.repsz*node_connect,2); %prealocate arrays
-            vert_add=zeros(no_nodes,3);
+        function obj = cellReplication(obj)
+            xPlacement = 0:obj.usx:obj.usx*(obj.repsx-1);
+            yPlacement = 0:obj.usy:obj.usy*(obj.repsy-1);
+            zPlacement = 0:obj.usz:obj.usz*(obj.repsz-1);
+            [XX,YY,ZZ] = ndgrid(xPlacement,yPlacement,zPlacement);
             
-            %completion notification
-            for i=0:obj.repsx-1
-                %completion notification
-                vert_add(:,1)=obj.vertices(:,1)+i*obj.usx;
-                for j=0:obj.repsy-1
-                    vert_add(:,2)=obj.vertices(:,2)+j*obj.usy;
-                    for k=0:obj.repsz-1
-                        vert_add(:,3)=obj.vertices(:,3)+k*obj.usz;
-                        vert_blank((count-1)*no_nodes+1:((count)*no_nodes),:)=vert_add;
-                        face_blank((count-1)*node_connect+1:((count)*node_connect),:)=obj.faces+(count-1)*(no_links);
-                        count=count+1;
-                    end
-                end
-            end
-            % remove duplicate verts and clean up
-            [vertices,~,indexn]=unique(vert_blank,'rows');
-            faces = indexn(face_blank);
+            vertOut = arrayfun(@(x,y,z) ...
+                [obj.vertices(:,1) + x,...
+                obj.vertices(:,2) + y,...
+                obj.vertices(:,3) + z]...
+                ,XX,YY,ZZ,'UniformOutput',0);
+            obj.vertices = cell2mat(vertOut(:));
             
-            % remove duplicate faces
-            for inc = 1:length(faces)
-                ind1 = faces(inc,1);
-                ind2 = faces(inc,2);
-                if ind1<=ind2
-                    % faces(inc,1) = ind1;
-                    % faces(inc,2) = ind2;
-                    % no change
-                else
-                    faces(inc,1) = ind2;
-                    faces(inc,2) = ind1;
-                end
-            end
-            faces = unique(faces,'rows');
+            strutCounter = 0:(numel(XX)-1);
+            numStruts = max(max(obj.faces));
+            strutCounter = strutCounter*numStruts;
+            strutOut = arrayfun(@(x) obj.faces + x,strutCounter,'UniformOutput',0);
+            obj.faces = cell2mat(strutOut(:));
         end
         function obj = addDiams(obj)
             % add both sphere and strut diameters
@@ -212,7 +186,7 @@ classdef PLG
             for inc = 1:length(obj.faces)
                 ind1 = obj.faces(inc,1);
                 ind2 = obj.faces(inc,2);
-                if ind1<=ind2
+                if ind1<ind2
                     % faces(inc,1) = ind1;
                     % faces(inc,2) = ind2;
                     % no change
@@ -221,7 +195,7 @@ classdef PLG
                     obj.faces(inc,2) = ind1;
                 end
             end
-            [obj.faces,i,j] = unique(obj.faces,'rows');
+            [obj.faces,i] = unique(obj.faces,'rows');
             obj.strutDiamter = obj.strutDiamter(i);
             
             [obj.vertices,i,indexn]=unique(obj.vertices,'rows');
@@ -235,17 +209,17 @@ classdef PLG
             thetaZ = wz*pi/180;
             % rotation matricies
             rx = [1           , 0          ,           0;...
-                  0           , cos(thetaX),-sin(thetaX);...
-                  0           , sin(thetaX), cos(thetaX)];
-              
+                0           , cos(thetaX),-sin(thetaX);...
+                0           , sin(thetaX), cos(thetaX)];
+            
             ry = [cos(thetaY) ,0           , sin(thetaY);...
-                  0           ,1           ,0           ;...
-                  -sin(thetaY),0           , cos(thetaY)];
-              
+                0           ,1           ,0           ;...
+                -sin(thetaY),0           , cos(thetaY)];
+            
             rz = [cos(thetaZ) ,-sin(thetaZ),           0;...
-                  sin(thetaZ) , cos(thetaZ),           0;...
-                  0           ,0           ,           1]; 
-              
+                sin(thetaZ) , cos(thetaZ),           0;...
+                0           ,0           ,           1];
+            
             %rotation x then y then zsplit for debugging
             numPoints = length(obj.vertices);
             newPoints = zeros(size(obj.vertices));
@@ -270,9 +244,19 @@ classdef PLG
             a.View = [45,45];
             axis vis3d
             a.NextPlot='add';
+            %struts
+            p1 = obj.vertices(obj.faces(:,1),:);
+            p2 = obj.vertices(obj.faces(:,2),:);
+            x = [p1(:,1),p2(:,1)]';
+            y = [p1(:,2),p2(:,2)]';
+            z = [p1(:,3),p2(:,3)]';
+            p = plot3(x,y,z,'Color',[0.3,0.3,0.3,0.5]);
             
-            PLG.plotLine(obj.vertices,obj.faces);
-            PLG.plotPoints(obj.vertices);
+            % points
+            x = obj.vertices(:,1);
+            y = obj.vertices(:,2);
+            z = obj.vertices(:,3);
+            s = scatter3(x,y,z,'MarkerFaceColor',[0.9,0.5,0],'MarkerEdgeColor','none');
             
             xlabel('x')
             ylabel('y')
@@ -288,7 +272,6 @@ classdef PLG
                 case 1
                     % stl
                     saveStl(obj,fileName,pathName);
-                    % TODO
                 case 2
                     % Nastran
                     % TODO
@@ -307,22 +290,24 @@ classdef PLG
             end
         end
         function saveStl(obj,fileName,pathName)
-            fullName = [pathName,fileName];
-            numFacets=obj.resolution*4;%number of facets created for one strut
-            numLinks=size(obj.faces,1);
-            numVertices=size(obj.vertices,1);
-            strutFacets=numFacets*numLinks; %total number of facets for all the struts
+            fullName  = [pathName,fileName];
+            numFacets = obj.resolution*4;%number of facets created for one strut
+            numLinks = size(obj.faces,1);
+            numVertices = size(obj.vertices,1);
+            
+            totalFacetsNoBall = numFacets*numLinks;
+            totalFacetsWithBall = totalFacetsNoBall + 8^2*(8-1)/4*numVertices;
             
             fid=fopen(fullName,'w');
             fprintf(fid, '%-80s', 'fast stl generator'); %binary write information
             
             if ~isempty(obj.sphereDiameter)
-                fwrite(fid,uint32(strutFacets+8^2*(8-1)*numVertices),'uint32'); %stl binary header file contains the total number of facets in the stl file
-                fid = PLG.ballCreate(obj.vertices,obj.sphereDiameter/2,numVertices,fid);
+                fwrite(fid,uint32(totalFacetsWithBall),'uint32'); %stl binary header file contains the total number of facets in the stl file
+                fid = ballCreate(obj,fid);
             else
-                fwrite(fid,uint32(strutFacets),'uint32'); %stl binary header file contains the total number of facets in the stl file
+                fwrite(fid,uint32(totalFacetsNoBall),'uint32'); %stl binary header file contains the total number of facets in the stl file
             end
-            fid = PLG.faceCreate(obj.vertices,obj.faces,obj.resolution,obj.strutDiamter/2,numLinks,fid);
+            fid = faceCreate(obj,fid);
             fclose(fid);
         end
         function saveExcel(obj,fileName,pathName)
@@ -377,156 +362,110 @@ classdef PLG
             data = [obj.faces,obj.strutDiamter];
             dlmwrite(fullName,data,'-append');
         end
-    end
-    methods (Static) % non cell type methods
-        function  fid = ballCreate(vertices,radius,numVertices,fid)
-            [x,y,z]=sphere(8); %create sphere with higher accuracy
-            x=x(:);y=y(:);z=z(:); %reshape points
-            ball.faces= convhull([x y z]); %create triangle links
-            sizer = size(ball.faces,1);
-            ball.vertices=[x,y,z]; %store the points
-            offset=ball.vertices*radius;
-            for i=1:numVertices
-                target=[offset(:,1)+vertices(i,1),offset(:,2)+vertices(i,2),offset(:,3)+vertices(i,3)];
-                for j=1:sizer
-                    %get values first end
-                    facet_a=target(ball.faces(j,1),:);
-                    facet_b=target(ball.faces(j,2),:);
-                    facet_c=target(ball.faces(j,3),:);
-                    normal=cross(facet_b-facet_a,facet_c-facet_a);
-                    %write values
+        function fid = faceCreate(obj,fid)
+            radius = obj.strutDiamter/2;
+            numLinks = length(obj.faces);
+            
+            % calculate points on each facet then write said points to file
+            % in the correct order
+            for i=1:numLinks
+                point1 = obj.vertices(obj.faces(i,1),:);
+                point2 = obj.vertices(obj.faces(i,2),:);
+                vector = point2-point1;
+                u1 = vector/norm(vector);
+                if u1(3)==1
+                    v1 = [1,0,0];
+                else
+                    v1 = cross([0,0,1],u1);
+                    v1 = v1/norm(v1);
+                end
+                offset = radius(i)*v1;
+                
+                vert1end = zeros(obj.resolution,3);
+                vert2end = zeros(obj.resolution,3);
+                for j=1:obj.resolution
+                    Qrot1 = PLG.qGetRotQuaternion((j-1)*2*pi/obj.resolution, u1);
+                    absolutePointRotation = PLG.qRotatePoint(offset', Qrot1)';
+                    % end 1
+                    vert1end(j,:)=absolutePointRotation+point1;
+                    % end 2
+                    vert2end(j,:)=absolutePointRotation+point2;
+                end
+                % scatter3(vertOut(:,1),vertOut(:,2),vertOut(:,3)) % scatter
+                %% join faces
+                for j=1:obj.resolution
+                    % end of strut at point 1
+                    datOut = circshift(vert1end,j);
+                    facet_a=point1;
+                    facet_b=datOut(1,:);
+                    facet_c=datOut(2,:);
+                    normal=cross(facet_b-facet_a,facet_a-facet_a);
+                    fwrite(fid,normal,'float32');           % write normal vector floating point numbers
+                    fwrite(fid,facet_c,'float32');   % first vertex (x,y,z)
+                    fwrite(fid,facet_b,'float32');   % second vertex
+                    fwrite(fid,facet_a,'float32');   % Third vertex
+                    fwrite(fid,0,'uint16','l');
+                    % end of strut at point 2
+                    datOut = circshift(vert2end,j);
+                    facet_a=point2;
+                    facet_b=datOut(1,:);
+                    facet_c=datOut(2,:);
+                    normal=cross(facet_b-facet_a,facet_a-facet_a);
+                    fwrite(fid,normal,'float32');           % write normal vector floating point numbers
+                    fwrite(fid,facet_c,'float32');   % first vertex (x,y,z)
+                    fwrite(fid,facet_b,'float32');   % second vertex
+                    fwrite(fid,facet_a,'float32');   % Third vertex
+                    fwrite(fid,0,'uint16','l');
+                    % along direction point 1 to point 2
+                    datOut1 = circshift(vert1end,j);
+                    datOut2 = circshift(vert2end,j);
+                    facet_a=datOut1(1,:);
+                    facet_b=datOut2(1,:);
+                    facet_c=datOut2(2,:);
+                    normal=cross(facet_b-facet_a,facet_a-facet_a);
+                    fwrite(fid,normal,'float32');           % write normal vector floating point numbers
+                    fwrite(fid,facet_c,'float32');   % first vertex (x,y,z)
+                    fwrite(fid,facet_b,'float32');   % second vertex
+                    fwrite(fid,facet_a,'float32');   % Third vertex
+                    fwrite(fid,0,'uint16','l');
+                    % along direction point 2 to point 1
+                    datOut1 = circshift(vert1end,j);
+                    datOut2 = circshift(vert2end,j);
+                    facet_a=datOut1(1,:);
+                    facet_b=datOut1(2,:);
+                    facet_c=datOut2(2,:);
+                    normal=cross(facet_b-facet_a,facet_a-facet_a);
                     fwrite(fid,normal,'float32');           % write normal vector floating point numbers
                     fwrite(fid,facet_a,'float32');   % first vertex (x,y,z)
                     fwrite(fid,facet_b,'float32');   % second vertex
                     fwrite(fid,facet_c,'float32');   % Third vertex
-                    fwrite(fid,32767,'uint16','l');
+                    fwrite(fid,0,'uint16','l');
                 end
             end
         end
-        function fid = faceCreate(vertices,faces,resolution,radius,numLinks,fid)
-            numVertices=((resolution+1)*2); %number of points created for 1 strut
-            
-            %% create facets linking information
-            % for face 1 create an array holding all the facet links for a strut's end
-            end1=ones(resolution,3);
-            end1(:,2)=[2:resolution+1]';
-            end1(:,3)=[3:resolution+1,2]';
-            % for face 2
-            end2=end1+resolution+1;
-            %sides in both directions
-            end1end2=[end1(:,2),end2(:,2:3)];
-            end2end1=[end1(:,2:3),end2(:,3)];
-            
-            for i=1:numLinks
-                point1=vertices(faces(i,1),:);
-                point2=vertices(faces(i,2),:);
-                separation=(point2-point1); %point1's vector normalised
-                u1=separation/norm(separation);
-                %create offset vector
-                if u1(3)~=0
-                    Vs=cross([1,0,0],u1);
-                    v1=Vs/norm(Vs);
-                elseif u1(2)~=0
-                    Vs=cross([0,0,1],u1);
-                    v1=Vs/norm(Vs);
-                elseif u1(1)~=0
-                    Vs=cross([0,1,0],u1);
-                    v1=Vs/norm(Vs);
-                else
-                    error('the two nodes collide')
-                end
-                offset1=radius*cross(v1,u1)';
-                for j=1:(resolution+1)*2
-                    if j==1
-                        vertices(j,:)=point1;
-                        count=1;
-                    elseif j>1 && j<=resolution+1
-                        Qrot1 = PLG.qGetRotQuaternion( ((count*2*pi)/resolution), u1 );
-                        vertices(j,:)=PLG.qRotatePoint( offset1 , Qrot1 )'+point1;
-                        
-                        %vertices(j,:) = rad*cos(alpha*count)*v1+rad*sin(alpha*count)*cross(v1,u1)+point1;
-                        count=count+1;
-                    elseif j>resolution+1
-                        vertices(j,:)=vertices(j-(resolution+1),:)+separation;
+        function fid = ballCreate(obj,fid)
+                [x,y,z]=sphere(8); %create sphere with higher accuracy
+                ball.faces= convhull([x(:), y(:), z(:)]); %create triangle links
+                sizer = size(ball.faces,1);
+                ball.vertices=[x(:),y(:),z(:)]; %store the points
+                
+                for i=1:size(obj.vertices,1)
+                    offset=ball.vertices*obj.sphereDiameter(i)/2;
+                    target=[offset(:,1)+obj.vertices(i,1),offset(:,2)+obj.vertices(i,2),offset(:,3)+obj.vertices(i,3)];
+                    for j=1:sizer
+                        %get values first end
+                        facet_a=target(ball.faces(j,1),:);
+                        facet_b=target(ball.faces(j,2),:);
+                        facet_c=target(ball.faces(j,3),:);
+                        normal=cross(facet_b-facet_a,facet_c-facet_a);
+                        %write values
+                        fwrite(fid,normal,'float32');           % write normal vector floating point numbers
+                        fwrite(fid,facet_a,'float32');   % first vertex (x,y,z)
+                        fwrite(fid,facet_b,'float32');   % second vertex
+                        fwrite(fid,facet_c,'float32');   % Third vertex
+                        fwrite(fid,32767,'uint16','l');
                     end
                 end
-                
-                %% join faces
-                for j=1:resolution
-                    %get values first end
-                    facet_a=vertices(end1(j,3),:);
-                    facet_b=vertices(end1(j,2),:);
-                    facet_c=vertices(end1(j,1),:);
-                    normal=cross(facet_b-facet_a,facet_c-facet_a);
-                    %write values
-                    fwrite(fid,normal,'float32');           % write normal vector floating point numbers
-                    fwrite(fid,facet_a,'float32');   % first vertex (x,y,z)
-                    fwrite(fid,facet_b,'float32');   % second vertex
-                    fwrite(fid,facet_c,'float32');   % Third vertex
-                    fwrite(fid,0,'uint16','l');
-                    
-                    %get values second end
-                    facet_a=vertices(end2(j,1),:);
-                    facet_b=vertices(end2(j,2),:);
-                    facet_c=vertices(end2(j,3),:);
-                    normal=cross(facet_b-facet_a,facet_c-facet_a);
-                    %write values
-                    fwrite(fid,normal,'float32');           % write normal vector floating point numbers
-                    fwrite(fid,facet_a,'float32');   % first vertex (x,y,z)
-                    fwrite(fid,facet_b,'float32');   % second vertex
-                    fwrite(fid,facet_c,'float32');   % Third vertex
-                    fwrite(fid,0,'uint16','l');
-                    
-                    %get values cylinder 1 direction
-                    facet_a=vertices(end1end2(j,3),:);
-                    facet_b=vertices(end1end2(j,2),:);
-                    facet_c=vertices(end1end2(j,1),:);
-                    normal=cross(facet_b-facet_a,facet_c-facet_a);
-                    %write values
-                    fwrite(fid,normal,'float32');           % write normal vector floating point numbers
-                    fwrite(fid,facet_a,'float32');   % first vertex (x,y,z)
-                    fwrite(fid,facet_b,'float32');   % second vertex
-                    fwrite(fid,facet_c,'float32');   % Third vertex
-                    fwrite(fid,0,'uint16','l');
-                    
-                    %get values cylinder in other direction
-                    facet_a=vertices(end2end1(j,1),:);
-                    facet_b=vertices(end2end1(j,2),:);
-                    facet_c=vertices(end2end1(j,3),:);
-                    normal=cross(facet_b-facet_a,facet_c-facet_a);
-                    %write values
-                    fwrite(fid,normal,'float32');           % write normal vector floating point numbers
-                    fwrite(fid,facet_a,'float32');   % first vertex (x,y,z)
-                    fwrite(fid,facet_b,'float32');   % second vertex
-                    fwrite(fid,facet_c,'float32');   % Third vertex
-                    fwrite(fid,0,'uint16','l');
-                end
-            end
-        end
-        function plotLine(vert,strut)
-            % plot a heap of lines fast
-            numStrut = size(strut,1);
-            for inc = 1:numStrut
-                link = strut(inc,:);
-                x = [vert(link(1),1),vert(link(2),1)];
-                y = [vert(link(1),2),vert(link(2),2)];
-                z = [vert(link(1),3),vert(link(2),3)];
-                l = line(x,y,z);
-                l.Color	=[0.3,0.3,0.3,0.5];
-            end
-        end
-        function plotPoints(vert)
-            % plot a heap of verts
-            if isempty(vert) % edge
-                return
-            end
-            numVert = size(vert,1);
-            for inc = 1:numVert
-                points = vert(inc,:);
-                s = scatter3(points(1),points(2),points(3));
-                s.MarkerFaceColor = [0.9,0.5,0];
-                s.MarkerEdgeColor = 'none';
-            end
         end
     end
     methods (Static) %cell type methods
@@ -540,112 +479,112 @@ classdef PLG
         end
         function [nodes, faces]= bcz(sx, sy, sz, origin)
             nodes=[origin;...                                        1
-                   origin(1)+sx,origin(2),origin(3);...              2
-                   origin(1)+sx,origin(2)+sy,origin(3);...           3
-                   origin(1),origin(2)+sy,origin(3);...              4
-                   origin(1),origin(2),origin(3)+sz;...              5
-                   origin(1)+sx,origin(2),origin(3)+sz;...           6
-                   origin(1)+sx,origin(2)+sy,origin(3)+sz;...        7
-                   origin(1),origin(2)+sy,origin(3)+sz;...           8
-                   origin(1)+sx/2,origin(2)+sy/2,origin(3)+sz/2];  % 9
+                origin(1)+sx,origin(2),origin(3);...              2
+                origin(1)+sx,origin(2)+sy,origin(3);...           3
+                origin(1),origin(2)+sy,origin(3);...              4
+                origin(1),origin(2),origin(3)+sz;...              5
+                origin(1)+sx,origin(2),origin(3)+sz;...           6
+                origin(1)+sx,origin(2)+sy,origin(3)+sz;...        7
+                origin(1),origin(2)+sy,origin(3)+sz;...           8
+                origin(1)+sx/2,origin(2)+sy/2,origin(3)+sz/2];  % 9
             faces=[1,9;...
-                   1,5;...
-                   2,9;...
-                   2,6;...
-                   3,9;...
-                   3,7;...
-                   4,9;...
-                   4,8;...
-                   5,9;...
-                   6,9;...
-                   7,9;....
-                   8,9];
+                1,5;...
+                2,9;...
+                2,6;...
+                3,9;...
+                3,7;...
+                4,9;...
+                4,8;...
+                5,9;...
+                6,9;...
+                7,9;....
+                8,9];
         end
         function [nodes, faces]= bcc2(sx, sy, sz, origin)
             nodes=[origin(1),origin(2)+sy/2,origin(3)+sz/2;...
-                   origin(1)+sx,origin(2)+sy/2,origin(3)+sz/2;...
-                   origin(1)+sx/2,origin(2),origin(3);...
-                   origin(1)+sx/2,origin(2),origin(3)+sz;...
-                   origin(1)+sx/2,origin(2)+sy,origin(3)+sz;...
-                   origin(1)+sx/2,origin(2)+sy,origin(3)];
+                origin(1)+sx,origin(2)+sy/2,origin(3)+sz/2;...
+                origin(1)+sx/2,origin(2),origin(3);...
+                origin(1)+sx/2,origin(2),origin(3)+sz;...
+                origin(1)+sx/2,origin(2)+sy,origin(3)+sz;...
+                origin(1)+sx/2,origin(2)+sy,origin(3)];
             faces=[3,1;...
-                   4,1;...
-                   5,1;...
-                   6,1;...
-                   2,3;...
-                   2,4;...
-                   2,5;...
-                   2,6];
+                4,1;...
+                5,1;...
+                6,1;...
+                2,3;...
+                2,4;...
+                2,5;...
+                2,6];
         end
         function [nodes, faces]= fcc(sx, sy, sz, origin)
             nodes=[origin;...                                           1  0
-                   origin(1)+sx,origin(2),origin(3);...                 2  0
-                   origin(1)+sx,origin(2)+sy,origin(3);...              3  0
-                   origin(1),origin(2)+sy,origin(3);...                 4  0
-                   origin(1),origin(2),origin(3)+sz;...                 5  1
-                   origin(1)+sx,origin(2),origin(3)+sz;...              6  1
-                   origin(1)+sx,origin(2)+sy,origin(3)+sz;...           7  1
-                   origin(1),origin(2)+sy,origin(3)+sz;...              8  1
-                   origin(1)+sx/2,origin(2)+sy/2,origin(3);...          9  0
-                   origin(1)+sx/2,origin(2)+sy/2,origin(3)+sz;...       10 1
-                   origin(1)+sx/2,origin(2),origin(3)+sz/2;...          11 2
-                   origin(1)+sx/2,origin(2)+sy,origin(3)+sz/2;...       12 2
-                   origin(1),origin(2)+sy/2,origin(3)+sz/2;...          13 2 
-                   origin(1)+sx,origin(2)+sy/2,origin(3)+sz/2]; %       14 2
+                origin(1)+sx,origin(2),origin(3);...                 2  0
+                origin(1)+sx,origin(2)+sy,origin(3);...              3  0
+                origin(1),origin(2)+sy,origin(3);...                 4  0
+                origin(1),origin(2),origin(3)+sz;...                 5  1
+                origin(1)+sx,origin(2),origin(3)+sz;...              6  1
+                origin(1)+sx,origin(2)+sy,origin(3)+sz;...           7  1
+                origin(1),origin(2)+sy,origin(3)+sz;...              8  1
+                origin(1)+sx/2,origin(2)+sy/2,origin(3);...          9  0
+                origin(1)+sx/2,origin(2)+sy/2,origin(3)+sz;...       10 1
+                origin(1)+sx/2,origin(2),origin(3)+sz/2;...          11 2
+                origin(1)+sx/2,origin(2)+sy,origin(3)+sz/2;...       12 2
+                origin(1),origin(2)+sy/2,origin(3)+sz/2;...          13 2
+                origin(1)+sx,origin(2)+sy/2,origin(3)+sz/2]; %       14 2
             faces=[1,13;...
-                   1,9;...
-                   1,11;...
-                   2,9;...
-                   2,14;...
-                   2,11;...
-                   3,12;...
-                   3,14;...
-                   3,9;...
-                   4,12;...
-                   4,9;...
-                   4,13;...
-                   5,13;...
-                   5,11;...
-                   5,10;...
-                   6,10;...
-                   6,14;...
-                   6,11;...
-                   7,10;...
-                   7,14;...
-                   7,12;...
-                   8,12;...
-                   8,13;...
-                   8,10];
+                1,9;...
+                1,11;...
+                2,9;...
+                2,14;...
+                2,11;...
+                3,12;...
+                3,14;...
+                3,9;...
+                4,12;...
+                4,9;...
+                4,13;...
+                5,13;...
+                5,11;...
+                5,10;...
+                6,10;...
+                6,14;...
+                6,11;...
+                7,10;...
+                7,14;...
+                7,12;...
+                8,12;...
+                8,13;...
+                8,10];
         end
         function [nodes, faces]= fccNoXY(sx, sy, sz, origin)
-            nodes=[origin;...                                           1  0
-                   origin(1)+sx,origin(2),origin(3);...                 2  0
-                   origin(1)+sx,origin(2)+sy,origin(3);...              3  0
-                   origin(1),origin(2)+sy,origin(3);...                 4  0
-                   origin(1),origin(2),origin(3)+sz;...                 5  1
-                   origin(1)+sx,origin(2),origin(3)+sz;...              6  1
-                   origin(1)+sx,origin(2)+sy,origin(3)+sz;...           7  1
-                   origin(1),origin(2)+sy,origin(3)+sz;...              8  1
-                   origin(1)+sx/2,origin(2),origin(3)+sz/2;...          9  2
-                   origin(1)+sx/2,origin(2)+sy,origin(3)+sz/2;...       10 2
-                   origin(1),origin(2)+sy/2,origin(3)+sz/2;...          11 2 
-                   origin(1)+sx,origin(2)+sy/2,origin(3)+sz/2]; %       12 2
+            nodes=[origin;...                                        1  0
+                origin(1)+sx,origin(2),origin(3);...                 2  0
+                origin(1)+sx,origin(2)+sy,origin(3);...              3  0
+                origin(1),origin(2)+sy,origin(3);...                 4  0
+                origin(1),origin(2),origin(3)+sz;...                 5  1
+                origin(1)+sx,origin(2),origin(3)+sz;...              6  1
+                origin(1)+sx,origin(2)+sy,origin(3)+sz;...           7  1
+                origin(1),origin(2)+sy,origin(3)+sz;...              8  1
+                origin(1)+sx/2,origin(2),origin(3)+sz/2;...          9  2
+                origin(1)+sx/2,origin(2)+sy,origin(3)+sz/2;...       10 2
+                origin(1),origin(2)+sy/2,origin(3)+sz/2;...          11 2
+                origin(1)+sx,origin(2)+sy/2,origin(3)+sz/2]; %       12 2
             faces=[1,11;...
-                   1,9;...
-                   2,12;...
-                   2,9;...
-                   3,10;...
-                   3,12;...
-                   4,10;...
-                   4,11;...
-                   5,11;...
-                   5,9;...
-                   6,12;...
-                   6,9;...
-                   7,12;...
-                   7,10;...
-                   8,10;...
-                   8,11];
+                1,9;...
+                2,12;...
+                2,9;...
+                3,10;...
+                3,12;...
+                4,10;...
+                4,11;...
+                5,11;...
+                5,9;...
+                6,12;...
+                6,9;...
+                7,12;...
+                7,10;...
+                8,10;...
+                8,11];
         end
         function [nodes, faces]= fcz(sx, sy, sz, origin)
             nodes=[origin;...
