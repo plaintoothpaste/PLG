@@ -139,8 +139,8 @@ classdef PLG
                 case obj.validExtensions{1}
                     % xls
                     error('TODO');
-                case obj.validExtensions{2}
-                    % csv
+                otherwise
+                    % csv or custom file
                     data = csvread(file);
                     numNodes=data(1,1);
                     numLinks=data(2,1);
@@ -148,7 +148,7 @@ classdef PLG
                     obj.vertices = data(3:numNodes+2,1:3);
                     
                     obj.faces    = data(numNodes+3:numNodes+numLinks+2,1:2);
-                    obj.strutDiameter = data(numNodes+3:numNodes+numLinks+2,3);
+                    obj.strutDiamter = data(numNodes+3:numNodes+numLinks+2,3);
                     if size(data,2)==3
                         % no sphere diameter supplied
                         obj.sphereDiameter = zeros(numNodes,1);
@@ -156,22 +156,8 @@ classdef PLG
                         % sphere diameter supplied
                         obj.sphereDiameter = data(3:numNodes+2,4);
                     end
-                case obj.validExtensions{3}
-                    % custom
-                    data = csvread(file);
-                    numNodes=data(1,1);
-                    numLinks=data(2,1);
-                    % data
-                    obj.vertices = data(3:numNodes+2,1:3);
-                    obj.faces    = data(numNodes+3:numNodes+numLinks+2,1:2);
-                    obj.diameters = data(numNodes+3:numNodes+numLinks+2,3);
-                    if size(data,2)==3
-                        % no sphere diameter supplied
-                        obj.sphereDiameter = zeros(numNodes,1);
-                    else
-                        % sphere diameter supplied
-                        obj.sphereDiameter = data(3:numNodes+2,4);
-                    end
+                    warning('Default resolution of 8 being used');
+                    obj.resolution = 8;
             end
         end
         function obj = translate(obj,x,y,z)
@@ -274,13 +260,13 @@ classdef PLG
                     saveStl(obj,fileName,pathName);
                 case 2
                     % Nastran
-                    % TODO
+                    error('TODO');
                 case 3
                     % ABAQUS
-                    % TODO
+                    error('TODO');
                 case 4
                     % BINARY
-                    % TODO
+                    error('TODO');
                 case 5
                     saveExcel(obj,fileName,pathName)
                 case 6
