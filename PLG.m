@@ -188,7 +188,7 @@ classdef PLG
             % cleans the lattice structure including the removal of
             % duplicate vertices and removes duplicate faces
             
-            % duplicate faces
+            % duplicate faces actual line
             for inc = 1:length(obj.faces)
                 ind1 = obj.faces(inc,1);
                 ind2 = obj.faces(inc,2);
@@ -208,6 +208,11 @@ classdef PLG
             [obj.vertices,i,indexn]=uniquetol(obj.vertices,obj.tolerance,'ByRows',1,'DataScale',1);
             obj.sphereDiameter = obj.sphereDiameter(i);
             obj.faces = indexn(obj.faces);
+            
+            % duplicate faces zero length
+            test = obj.faces(:,1)==obj.faces(:,2);
+            obj.faces(test,:)=[];
+            obj.strutDiamter(test)=[];
         end
         function obj = rotate(obj,wx,wy,wz)
             % rotations are in degrees about the main axes
@@ -257,8 +262,9 @@ classdef PLG
             x = [p1(:,1),p2(:,1)]';
             y = [p1(:,2),p2(:,2)]';
             z = [p1(:,3),p2(:,3)]';
-            p = plot3(x,y,z,'Color',[0.3,0.3,0.3,0.5]);
-            
+            p = plot3(x,y,z);
+            p.Color = [0.3,0.3,0.3,0.5];
+            % p.Color = rand(length(x),3); % if random colours are needed
             % points
             x = obj.vertices(:,1);
             y = obj.vertices(:,2);
@@ -344,6 +350,15 @@ classdef PLG
             verts2 = obj.vertices(obj.faces(:,2),:);
             lengthVerts = sum(sqrt((verts1-verts2).^2),2);
             obj.tolerance = min(lengthVerts)/10;
+        end
+        function obj = calcDx(obj)
+            % returns the absolute vector length
+            p1 = obj.vertices(obj.faces(:,1),:);
+            p2 = obj.vertices(obj.faces(:,2),:);
+            diffx = (p1(:,1)-p2(:,1));
+            diffy = (p1(:,2)-p2(:,2));
+            diffz = (p1(:,3)-p2(:,3));
+            obj.dx = sqrt(diffx.^2+diffy.^2+diffz.^2);
         end
     end
     methods % save out methods
