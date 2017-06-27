@@ -4,9 +4,8 @@ classdef PLG
     % an input is required to use this
     % EXAMPLE
     % obj = PLG('bcc',12,0.3,...
-    %     1,0.3,2,2,2,...
-    %     10,10,15,0,0,0);
-    % obj = latticeGenerate(obj);
+    %     1,0.5,2,2,2,...
+    %     4,4,5,0,0,0);
     % save(obj);
     properties (SetAccess=protected)
         latticeType;
@@ -35,6 +34,8 @@ classdef PLG
             '*.xls','Excel format';...
             '*.custom','Custom csv format for debug etc'};
         strutureType;
+        tolerance; % defined as 1/1000 of the shortest length present
+        dx; % length of a strut
     end
     methods
         function obj = PLG(varargin)
@@ -186,6 +187,8 @@ classdef PLG
         function obj = cleanLattice(obj)
             % cleans the lattice structure including the removal of
             % duplicate vertices and removes duplicate faces
+            
+            % duplicate faces
             for inc = 1:length(obj.faces)
                 ind1 = obj.faces(inc,1);
                 ind2 = obj.faces(inc,2);
@@ -201,7 +204,8 @@ classdef PLG
             [obj.faces,i] = unique(obj.faces,'rows');
             obj.strutDiamter = obj.strutDiamter(i);
             
-            [obj.vertices,i,indexn]=unique(obj.vertices,'rows');
+            % duplicate vertices
+            [obj.vertices,i,indexn]=uniquetol(obj.vertices,obj.tolerance,'ByRows',1,'DataScale',1);
             obj.sphereDiameter = obj.sphereDiameter(i);
             obj.faces = indexn(obj.faces);
         end
@@ -278,7 +282,8 @@ classdef PLG
             facesOut = [];
             splitStruts = cell(numFaces,1);
             % get tol
-            tol = PLG.getTolerance(obj.vertices,obj.faces);
+            obj = getTolerance(obj);
+            tol = obj.tolerance;
             struts2Check = 1:numFaces;
             boundingBox = PLG.getBound(obj.vertices,obj.faces,struts2Check);
             %% main loop
@@ -294,11 +299,10 @@ classdef PLG
                 % remove that are already connected properly
                 potentialStruts = PLG.removeNormalConStruts(currentP1,currentP2,potentialStruts,obj.faces,obj.vertices,tol);
                 potentialStruts = PLG.removeParralelStruts(currentP1,currentP2,potentialStruts,obj.faces,obj.vertices);
-                
                 % check if any faces are already split if so grab their sub BB and
                 % eleminate any that do not intersect
-                potentialStruts = PLG.findSplitStrutBB(splitStruts,potentialStruts,currentBB,currentP1,currentP2,facesOut,vertsOut,tol);
-                
+                % potentialStruts = PLG.findSplitStrutBB(splitStruts,potentialStruts,currentBB,currentP1,currentP2,facesOut,vertsOut,tol);
+                potentialStruts = [potentialStruts',ones(length(potentialStruts),1)];
                 if isempty(potentialStruts)
                     % no struts to break up
                     vertsOut = [vertsOut;currentP1;currentP2];
@@ -311,6 +315,11 @@ classdef PLG
                         facesOut,vertsOut,tol);
                     vertsOut = [vertsOut;vertsTmpOut];
                     facesTmpOut = facesTmpOut+maxInd;
+                    % debug: 
+                    % patch('Faces',obj.faces(inc,:),'Vertices',obj.vertices,'EdgeColor',[1,0,0]);
+                    % patch('Faces',obj.faces(potentialStruts,:),'Vertices',obj.vertices); hold on;
+                    % scatter3(vertsOut(:,1),vertsOut(:,2),vertsOut(:,3));
+
                     maxInd = facesTmpOut(end,2);
                     facesOut = [facesOut;facesTmpOut];
                     st = lengthFaces+1; % number of new faces
@@ -328,6 +337,13 @@ classdef PLG
             obj.sphereDiameter = obj.sphereDiameter(1);
             obj = addDiams(obj);
             obj = cleanLattice(obj);
+        end
+        function obj = getTolerance(obj)
+            % get the shortest strut and divide by 1000
+            verts1 = obj.vertices(obj.faces(:,1),:);
+            verts2 = obj.vertices(obj.faces(:,2),:);
+            lengthVerts = sum(sqrt((verts1-verts2).^2),2);
+            obj.tolerance = min(lengthVerts)/10;
         end
     end
     methods % save out methods
@@ -832,13 +848,6 @@ classdef PLG
         end
     end
     methods (Static) % strut splitting methods
-        function tol = getTolerance(vertices,faces)
-            % get the shortest strut and divide by 1000
-            verts1 = vertices(faces(:,1),:);
-            verts2 = vertices(faces(:,2),:);
-            lengthVerts = sum(sqrt((verts1-verts2).^2),2);
-            tol = min(lengthVerts)/1000;
-        end
         function boundingBox = getBound(vertices,faces,desired)
             % get bounding box of ervery strut
             %[minX minY minZ]
@@ -856,25 +865,14 @@ classdef PLG
             % determine which boundingBox intersect the currentBB
             numBB = length(boundingBox);
             isIntersect = false(numBB,1);
-            xCheck = currentBB(:,1);
-            desired = 1:numBB;
-            for inc = desired
-                xVals = boundingBox{inc}(:,1);
-                isIntersect(inc) = PLG.checkIn(xCheck,xVals);
-            end
-            if ~isempty(isIntersect)
-                yCheck = currentBB(:,2);
-                for inc = find(isIntersect)'
-                    yVals = boundingBox{inc}(:,2);
-                    isIntersect(inc) = PLG.checkIn(yCheck,yVals);
-                end
-            end
-            if ~isempty(isIntersect)
-                zCheck = currentBB(:,3);
-                for inc = find(isIntersect)'
-                    zVals = boundingBox{inc}(:,3);
-                    isIntersect(inc) = PLG.checkIn(zCheck,zVals);
-                end
+            for inc = 1:numBB
+                checkBB = boundingBox{inc};
+                %check each dimension
+                inX = PLG.checkIn(currentBB(:,1),checkBB(:,1));
+                inY = PLG.checkIn(currentBB(:,2),checkBB(:,2));
+                inZ = PLG.checkIn(currentBB(:,3),checkBB(:,3));
+                
+                isIntersect(inc) = inX & inY & inZ;
             end
         end
         function potentialStruts = removeNormalConStruts(p0,p1,potentialStruts,faces,verts,tol)
@@ -950,20 +948,15 @@ classdef PLG
                 strutType = potentialStruts(inc,2);
                 index = potentialStruts(inc,1);
                 if strutType==1
-                    p2 = verts(faces(index,1),:);
-                    p3 = verts(faces(index,2),:);
+                    q0 = verts(faces(index,1),:);
+                    q1 = verts(faces(index,2),:);
                 else
-                    p2 = vertsOut(facesOut(index,1),:);
-                    p3 = vertsOut(facesOut(index,2),:);
+                    q0 = vertsOut(facesOut(index,1),:);
+                    q1 = vertsOut(facesOut(index,2),:);
                 end
-                [dist,sc,p1Out,p2Out] = DistBetween2Segment(p0, p1, p2, p3);
-                if 0 % debug
-                    l1 = [p1',p0']; l2 = [p3',p2']; figure; hold on;
-                    plot3(l1(1,:),l1(2,:),l1(3,:)); plot3(l2(1,:),l2(2,:),l2(3,:));
-                    scatter3(p1Out(1),p1Out(2),p1Out(3)); scatter3(p2Out(1),p2Out(2),p2Out(3))
-                end
+                [dist,sc,p1Out,p2Out] = PLG.distBetween2Segment(p0, p1, q0, q1);
                 if dist<tol
-                    coordinates(inc,:) = mean([p1Out;p2Out]);
+                    coordinates(inc,:) = mean([p1Out;p2Out],1);
                     order(inc) = sc; % the larger the value the further the point is from p1
                 else
                     coordinates(inc,:) = NaN;
@@ -974,7 +967,7 @@ classdef PLG
             test = isnan(order);
             order(test)=[];
             coordinates(test,:) = [];
-            [order,index] = uniquetol(order,1e-3,'DataScale',1);
+            [order,index] = uniquetol(order,tol,'DataScale',1);
             coordinates = coordinates(index,:);
             % create a face and verts array
             numNewFaces = length(order)+1;
@@ -984,15 +977,99 @@ classdef PLG
         function isIn = checkIn(pointsMain,pointsCheck)
             % determine if pointsCheck intersect pointsMain
             % pointsMain = [minPoint,maxPoint]
-            if pointsCheck(1)>=pointsMain(1) && pointsCheck(1)<=pointsMain(1)
-                isIn = true;
-            elseif pointsCheck(1)<=pointsMain(1) && pointsCheck(2)>=pointsMain(2)
-                isIn = true;
-            elseif pointsCheck(2)<=pointsMain(2) && pointsCheck(2)>=pointsMain(1)
-                isIn = true;
+            if pointsMain(1) < pointsCheck(1)
+                lowRange = pointsMain;
+                highRange = pointsCheck;
             else
-                isIn = false;
+                lowRange = pointsCheck;
+                highRange = pointsMain;
             end
+            
+            isIn = lowRange(2) >= highRange(1);
+            
+        end
+        function [distance fromP1 coord1 coord2] = distBetween2Segment(p0, p1, q0, q1)
+            % code from: https://au.mathworks.com/matlabcentral/fileexchange/32487-shortest-distance-between-two-line-segments?focused=3821416&tab=function
+            u = p0 - p1;
+            v = q0 - q1;
+            w = p1 - q1;
+            
+            a = dot(u,u);
+            b = dot(u,v);
+            c = dot(v,v);
+            d = dot(u,w);
+            e = dot(v,w);
+            D = a*c - b*b;
+            sD = D;
+            tD = D;
+            
+            SMALL_NUM = 0.00000001;
+            
+            % compute the line parameters of the two closest points
+            if (D < SMALL_NUM)  % the lines are almost parallel
+                sN = 0.0;       % force using point P0 on segment S1
+                sD = 1.0;       % to prevent possible division by 0.0 later
+                tN = e;
+                tD = c;
+            else                % get the closest points on the infinite lines
+                sN = (b*e - c*d);
+                tN = (a*e - b*d);
+                if (sN < 0.0)   % sc < 0 => the s=0 edge is visible
+                    sN = 0.0;
+                    tN = e;
+                    tD = c;
+                elseif (sN > sD)% sc > 1 => the s=1 edge is visible
+                    sN = sD;
+                    tN = e + b;
+                    tD = c;
+                end
+            end
+            
+            if (tN < 0.0)            % tc < 0 => the t=0 edge is visible
+                tN = 0.0;
+                % recompute sc for this edge
+                if (-d < 0.0)
+                    sN = 0.0;
+                elseif (-d > a)
+                    sN = sD;
+                else
+                    sN = -d;
+                    sD = a;
+                end
+            elseif (tN > tD)       % tc > 1 => the t=1 edge is visible
+                tN = tD;
+                % recompute sc for this edge
+                if ((-d + b) < 0.0)
+                    sN = 0;
+                elseif ((-d + b) > a)
+                    sN = sD;
+                else
+                    sN = (-d + b);
+                    sD = a;
+                end
+            end
+            
+            % finally do the division to get sc and tc
+            if(abs(sN) < SMALL_NUM)
+                sc = 0.0;
+            else
+                sc = sN / sD;
+            end
+            
+            if(abs(tN) < SMALL_NUM)
+                tc = 0.0;
+            else
+                tc = tN / tD;
+            end
+            
+            % get the difference of the two closest points
+            dP = w + (sc * u) - (tc * v);  % = S1(sc) - S2(tc)
+            
+            %% outputs
+            distance = norm(dP);
+            fromP1 = sc;
+            coord1 = p1+sc*u;   % Closest point on object 1
+            coord2 = q1+tc*v;   % Closest point on object 2
             
         end
     end
