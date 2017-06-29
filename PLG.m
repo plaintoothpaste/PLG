@@ -34,7 +34,7 @@ classdef PLG
             '*.xls','Excel format';...
             '*.custom','Custom csv format for debug etc'};
         strutureType;
-        tolerance; % defined as 1/1000 of the shortest length present
+        tolerance; % defined as 1/100 of the shortest length present
         dx; % length of a strut
     end
     methods
@@ -71,6 +71,10 @@ classdef PLG
                     obj.orginy = varargin{13};
                     obj.orginz = varargin{14};
                     
+                    % set tolerance as required in clean lattice
+                    obj.tolerance = min([obj.usx,obj.usy,obj.usz])/100;
+                    
+                    % generate the lattice structure based on inputs
                     obj = latticeGenerate(obj); % generate structure
                     obj = cellReplication(obj); % replicate the unit cells generated above
                     obj = addDiams(obj);        % apply unique diameters to each strut
@@ -262,14 +266,14 @@ classdef PLG
             x = [p1(:,1),p2(:,1)]';
             y = [p1(:,2),p2(:,2)]';
             z = [p1(:,3),p2(:,3)]';
-            p = plot3(x,y,z);
-            p.Color = [0.3,0.3,0.3,0.5];
-            % p.Color = rand(length(x),3); % if random colours are needed
+            plot3(x,y,z,'Color',[0.3,0.3,0.3,0.5]);
+            % plot3(x,y,z); % if random colours are needed
+            
             % points
             x = obj.vertices(:,1);
             y = obj.vertices(:,2);
             z = obj.vertices(:,3);
-            s = scatter3(x,y,z,'MarkerFaceColor',[0.9,0.5,0],'MarkerEdgeColor','none');
+            scatter3(x,y,z,'MarkerFaceColor',[0.9,0.5,0],'MarkerEdgeColor','none');
             
             xlabel('x')
             ylabel('y')
