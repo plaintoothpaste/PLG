@@ -5,7 +5,7 @@ program has been converted into a class.
 This program takes a bunch of inputs and writes a lattice file in various outputs for use in other programs.
 ## Methods
 The following is a list of methods and a quick overview of their function, should obvious from the name what it is they do.
-- PLG: Creates a PLG object based on inputs below. if running with 14 inputs the nex three functions are called as sub functions.
+- PLG: Creates a PLG object based on inputs below. if running with 15 inputs the nex three functions are called as sub functions.
 - latticeGenerate: generates a lattice unit cell based on inputs
 - cellReplication: replicates a unit cell based on inputs
 - addDiams: add unique diamters for each strut and sphere
@@ -21,7 +21,7 @@ To generate a unit cell you must define a new subfunction under the "cell type m
 
 # Inputs
  - **1 input -**  File location of a .custom or csv file containing a custom set of vertices and connections (faces).
- - **14 inputs -** See code for details however 14 inputs are required when generating a regular lattice from scratch.
+ - **15 inputs -** See code for details however 15 inputs are required when generating a regular lattice from scratch.
 
 # other
  - most up to date non class based version in archive next to git origin location.

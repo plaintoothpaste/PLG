@@ -4,12 +4,13 @@ classdef PLG
     % an input is required to use this
     % EXAMPLE
     % obj = PLG('bcc',12,0.3,...
-    %     1,0.5,2,2,2,...
+    %     1,0.5,8,6,2,2,2,...
     %     4,4,5,0,0,0);
     % save(obj);
     properties (SetAccess=protected)
         latticeType;
         resolution;
+        sphereResolution;
         strutDiamter;
         % sphereAddition;
         sphereDiameter;
@@ -49,7 +50,7 @@ classdef PLG
                     % definitions see load function for more information
                     obj = load(obj,varargin{1});
                     obj.strutureType = 0;
-                case 14
+                case 15
                     %Generate a new regular lattice
                     %   input order same as properties order
                     obj.latticeType = varargin{1};
@@ -57,19 +58,21 @@ classdef PLG
                     obj.strutDiamter = varargin{3};
                     if varargin{4}==1
                         obj.sphereDiameter = varargin{5};
+                        obj.sphereResolution = varargin{6};
                     else
                         obj.sphereDiameter = 0;
+                        obj.sphereResolution = 8;
                     end
                     
-                    obj.usx = varargin{6};
-                    obj.usy = varargin{7};
-                    obj.usz = varargin{8};
-                    obj.repsx = varargin{9};
-                    obj.repsy = varargin{10};
-                    obj.repsz = varargin{11};
-                    obj.orginx = varargin{12};
-                    obj.orginy = varargin{13};
-                    obj.orginz = varargin{14};
+                    obj.usx = varargin{7};
+                    obj.usy = varargin{8};
+                    obj.usz = varargin{9};
+                    obj.repsx = varargin{10};
+                    obj.repsy = varargin{11};
+                    obj.repsz = varargin{12};
+                    obj.orginx = varargin{13};
+                    obj.orginy = varargin{14};
+                    obj.orginz = varargin{15};
                     
                     % set tolerance as required in clean lattice
                     obj.tolerance = min([obj.usx,obj.usy,obj.usz])/100;
@@ -398,7 +401,7 @@ classdef PLG
             numVertices = size(obj.vertices,1);
             
             totalFacetsNoBall = numFacets*numLinks;
-            totalFacetsWithBall = totalFacetsNoBall + 8^2*(8-1)/4*numVertices;
+            totalFacetsWithBall = totalFacetsNoBall + 2*obj.sphereResolution*(obj.sphereResolution-1)*numVertices;
             
             fid=fopen(fullName,'w');
             fprintf(fid, '%-80s', 'fast stl generator'); %binary write information
@@ -546,7 +549,7 @@ classdef PLG
             end
         end
         function fid = ballCreate(obj,fid)
-            [x,y,z]=sphere(8); %create sphere with higher accuracy
+            [x,y,z]=sphere(obj.sphereResolution); %create sphere with higher accuracy
             ball.faces= convhull([x(:), y(:), z(:)]); %create triangle links
             sizer = size(ball.faces,1);
             ball.vertices=[x(:),y(:),z(:)]; %store the points
