@@ -195,26 +195,20 @@ classdef PLG
             % cleans the lattice structure including the removal of
             % duplicate vertices and removes duplicate faces
             
-            % duplicate faces actual line
-            for inc = 1:length(obj.faces)
-                ind1 = obj.faces(inc,1);
-                ind2 = obj.faces(inc,2);
-                if ind1<ind2
-                    % faces(inc,1) = ind1;
-                    % faces(inc,2) = ind2;
-                    % no change
-                else
-                    obj.faces(inc,1) = ind2;
-                    obj.faces(inc,2) = ind1;
-                end
-            end
-            [obj.faces,i] = unique(obj.faces,'rows');
-            obj.strutDiamter = obj.strutDiamter(i);
-            
             % duplicate vertices
             [obj.vertices,i,indexn]=uniquetol(obj.vertices,obj.tolerance,'ByRows',1,'DataScale',1);
             obj.sphereDiameter = obj.sphereDiameter(i);
             obj.faces = indexn(obj.faces);
+            
+            % duplicate faces
+            tmp = obj.faces;
+            test = tmp(:,1)>tmp(:,2);
+            obj.faces(test,1) = tmp(test,2);
+            obj.faces(test,2) = tmp(test,1);
+            [obj.faces,i] = unique(obj.faces,'rows');
+            obj.strutDiamter = obj.strutDiamter(i);
+            
+            
             
             % duplicate faces zero length
             test = obj.faces(:,1)==obj.faces(:,2);

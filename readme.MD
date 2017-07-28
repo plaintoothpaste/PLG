@@ -2,16 +2,16 @@ Orriginal author: Matthew McMillan,
 DATE: 27/06/17
 # description
 program has been converted into a class.
-This program takes a bunch of inputs and writes a lattice file in various outputs for use in other programs.
+This program takes a bunch of inputs and writes a lattice file in various outputs for use in other programs. The use of the PLGBatch file simplifies the creation of lattice(s).
 ## Methods
 The following is a list of methods and a quick overview of their function, should obvious from the name what it is they do.
-- PLG: Creates a PLG object based on inputs below. if running with 15 inputs the nex three functions are called as sub functions.
+- PLG: Creates a PLG object based on inputs below. if running with 15 inputs the next four functions are called as sub functions.
 - latticeGenerate: generates a lattice unit cell based on inputs
 - cellReplication: replicates a unit cell based on inputs
 - addDiams: add unique diamters for each strut and sphere
+- cleanLattice: removes duplicate vertices or faces and orders the vertices in Z
 - load: loads an existing file
 - translate: translates the lattice structure.
-- cleanLattice: removes duplicate vertices or faces and orders the vertices in Z
 - rotate: rotates the lattice
 - plot: displays a rendering of the beam model that represents the lattice.
 - splitStruts: New method that splits strut intersections that are not already defined and then creates a new lattice to replace the old. This method is not thoroughly tested and should be considered buggy. This method calls many subfunctions stored in their own method group.

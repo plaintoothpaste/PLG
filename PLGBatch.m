@@ -31,7 +31,7 @@ for unitInc = 1:length(unitCell);
                                             usxInc,usyInc,uszInc,...
                                             repXInc,repYInc,repZInc,...
                                             0,0,0);
-                                        %saveCustom(obj,[name,'.custom'],[cd,filesep]);
+                                        saveCustom(obj,[name,'.custom'],[cd,filesep]);
                                         saveStl(obj,[name,'.stl'],[cd,filesep]);
                                     end
                                 end
