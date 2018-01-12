@@ -1,15 +1,14 @@
-projectName = 'squash';
+projectName = 'latconv';
 unitCell = {'bcz'};
-resolution = [8];
+resolution = 12;
 strut_dia = 300e-3;
-ball_dia = 300e-3;
+ball_dia = 1.5*strut_dia ;
 reps_x = 3;
 reps_y = 3;
-reps_z = [4,8];
-unitSizeX = 5;
-unitSizeY = 5;
-unitSizeZ = 5;
-
+reps_z = 3;
+unitSizeX = 2;
+unitSizeY = 2;
+unitSizeZ = 2;
 
 %% main loop
 for unitInc = 1:length(unitCell);
@@ -31,8 +30,9 @@ for unitInc = 1:length(unitCell);
                                             usxInc,usyInc,uszInc,...
                                             repXInc,repYInc,repZInc,...
                                             0,0,0);
-                                        saveCustom(obj,[name,'.custom'],[cd,filesep]);
-                                        saveStl(obj,[name,'.stl'],[cd,filesep]);
+                                        %saveCustom(obj,[name,'.custom'],[cd,filesep]);
+                                        %saveStl(obj,[name,'.stl'],[cd,filesep]);
+                                        getProperties(obj,[name,'.xlsx'])
                                     end
                                 end
                             end
