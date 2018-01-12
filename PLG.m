@@ -15,7 +15,7 @@ classdef PLG
         % sphereAddition;
         sphereDiameter;
         vertices;
-        faces;
+        struts;
         
         usx;
         usy;
@@ -91,27 +91,27 @@ classdef PLG
             % all the below unit cells are stored in their own method section
             switch obj.latticeType
                 case 'bcc' % BCC Cell
-                    [obj.vertices, obj.faces] = PLG.bcc(obj.usx,obj.usy,obj.usz);
+                    [obj.vertices, obj.struts] = PLG.bcc(obj.usx,obj.usy,obj.usz);
                 case 'bcc2' % BCC Cell with no cantilevers
-                    [obj.vertices, obj.faces] = PLG.bcc2(obj.usx,obj.usy,obj.usz);
+                    [obj.vertices, obj.struts] = PLG.bcc2(obj.usx,obj.usy,obj.usz);
                 case 'bcz' % BCC Cell
-                    [obj.vertices, obj.faces] = PLG.bcz(obj.usx,obj.usy,obj.usz);
+                    [obj.vertices, obj.struts] = PLG.bcz(obj.usx,obj.usy,obj.usz);
                 case 'fcc'
-                    [obj.vertices, obj.faces] = PLG.fcc(obj.usx,obj.usy,obj.usz);
+                    [obj.vertices, obj.struts] = PLG.fcc(obj.usx,obj.usy,obj.usz);
                 case 'fccNoXY'
-                    [obj.vertices, obj.faces] = PLG.fccNoXY(obj.usx,obj.usy,obj.usz);
+                    [obj.vertices, obj.struts] = PLG.fccNoXY(obj.usx,obj.usy,obj.usz);
                 case 'fbcxyz'
-                    [obj.vertices, obj.faces] = PLG.fbcxyz(obj.usx,obj.usy,obj.usz);
+                    [obj.vertices, obj.struts] = PLG.fbcxyz(obj.usx,obj.usy,obj.usz);
                 case 'fcz'
-                    [obj.vertices, obj.faces] = PLG.fcz(obj.usx,obj.usy,obj.usz);
+                    [obj.vertices, obj.struts] = PLG.fcz(obj.usx,obj.usy,obj.usz);
                 case 'fbcz'
-                    [obj.vertices, obj.faces] = PLG.fbcz(obj.usx,obj.usy,obj.usz);
+                    [obj.vertices, obj.struts] = PLG.fbcz(obj.usx,obj.usy,obj.usz);
                 case 'bcc_fcc'
-                    [obj.vertices, obj.faces] = PLG.bccFcc(obj.usx,obj.usy,obj.usz);
+                    [obj.vertices, obj.struts] = PLG.bccFcc(obj.usx,obj.usy,obj.usz);
                 case 'fbc'
-                    [obj.vertices, obj.faces] = PLG.fbc(obj.usx,obj.usy,obj.usz);
+                    [obj.vertices, obj.struts] = PLG.fbc(obj.usx,obj.usy,obj.usz);
                 case 'box'
-                    [obj.vertices, obj.faces] = PLG.box(obj.usx,obj.usy,obj.usz);
+                    [obj.vertices, obj.struts] = PLG.box(obj.usx,obj.usy,obj.usz);
             end
             % translsate the unit cell to the correct location
             obj = translate(obj,obj.orginx,obj.orginy,obj.orginz);
@@ -130,15 +130,15 @@ classdef PLG
             obj.vertices = cell2mat(vertOut(:));
             
             strutCounter = 0:(numel(XX)-1);
-            numStruts = max(max(obj.faces));
+            numStruts = max(max(obj.struts));
             strutCounter = strutCounter*numStruts;
-            strutOut = arrayfun(@(x) obj.faces + x,strutCounter,'UniformOutput',0);
-            obj.faces = cell2mat(strutOut(:));
+            strutOut = arrayfun(@(x) obj.struts + x,strutCounter,'UniformOutput',0);
+            obj.struts = cell2mat(strutOut(:));
         end
         function obj = addDiams(obj)
             % add both sphere and strut diameters
             numNodes = size(obj.vertices,1);
-            numStruts = size(obj.faces,1);
+            numStruts = size(obj.struts,1);
             
             obj.sphereDiameter = ones(numNodes,1)*obj.sphereDiameter;
             obj.strutDiamter = ones(numStruts,1)*obj.strutDiamter;
@@ -159,7 +159,7 @@ classdef PLG
                     % data
                     obj.vertices = data(3:numNodes+2,1:3);
                     
-                    obj.faces    = data(numNodes+3:numNodes+numLinks+2,1:2);
+                    obj.struts    = data(numNodes+3:numNodes+numLinks+2,1:2);
                     obj.strutDiameter = data(numNodes+3:numNodes+numLinks+2,3);
                     if size(data,2)==3
                         % no sphere diameter supplied
@@ -175,7 +175,7 @@ classdef PLG
                     numLinks=data(2,1);
                     % data
                     obj.vertices = data(3:numNodes+2,1:3);
-                    obj.faces    = data(numNodes+3:numNodes+numLinks+2,1:2);
+                    obj.struts    = data(numNodes+3:numNodes+numLinks+2,1:2);
                     obj.strutDiamter = data(numNodes+3:numNodes+numLinks+2,3);
                     if size(data,2)==3
                         % no sphere diameter supplied
@@ -193,26 +193,26 @@ classdef PLG
         end
         function obj = cleanLattice(obj)
             % cleans the lattice structure including the removal of
-            % duplicate vertices and removes duplicate faces
+            % duplicate vertices and removes duplicate struts
             
             % duplicate vertices
             [obj.vertices,i,indexn]=uniquetol(obj.vertices,obj.tolerance,'ByRows',1,'DataScale',1);
             obj.sphereDiameter = obj.sphereDiameter(i);
-            obj.faces = indexn(obj.faces);
+            obj.struts = indexn(obj.struts);
             
-            % duplicate faces
-            tmp = obj.faces;
+            % duplicate struts
+            tmp = obj.struts;
             test = tmp(:,1)>tmp(:,2);
-            obj.faces(test,1) = tmp(test,2);
-            obj.faces(test,2) = tmp(test,1);
-            [obj.faces,i] = unique(obj.faces,'rows');
+            obj.struts(test,1) = tmp(test,2);
+            obj.struts(test,2) = tmp(test,1);
+            [obj.struts,i] = unique(obj.struts,'rows');
             obj.strutDiamter = obj.strutDiamter(i);
             
             
             
-            % duplicate faces zero length
-            test = obj.faces(:,1)==obj.faces(:,2);
-            obj.faces(test,:)=[];
+            % duplicate struts zero length
+            test = obj.struts(:,1)==obj.struts(:,2);
+            obj.struts(test,:)=[];
             obj.strutDiamter(test)=[];
         end
         function obj = rotate(obj,wx,wy,wz)
@@ -247,7 +247,7 @@ classdef PLG
             end
             obj.vertices = newPoints;
         end
-        function plot(obj)
+        function plot(obj,colours)
             % plot the lattice with nodes highlighted
             f = figure;
             f.Units	= 'Normalized';
@@ -258,14 +258,20 @@ classdef PLG
             axis vis3d
             a.NextPlot='add';
             %struts
-            p1 = obj.vertices(obj.faces(:,1),:);
-            p2 = obj.vertices(obj.faces(:,2),:);
+            p1 = obj.vertices(obj.struts(:,1),:);
+            p2 = obj.vertices(obj.struts(:,2),:);
             x = [p1(:,1),p2(:,1)]';
             y = [p1(:,2),p2(:,2)]';
             z = [p1(:,3),p2(:,3)]';
-            plot3(x,y,z,'Color',[0.3,0.3,0.3,0.5]);
-            % plot3(x,y,z); % if random colours are needed
             
+            if exist('colours','var')
+                p = plot3(x,y,z,'Color',[0.3,0.3,0.3,0.5]);
+                for inc = 1:length(p)
+                    p(inc).Color = colours(inc,:);
+                end
+            else
+                plot3(x,y,z,'Color',[0.3,0.3,0.3,0.5]);
+            end
             % points
             x = obj.vertices(:,1);
             y = obj.vertices(:,2);
@@ -282,63 +288,63 @@ classdef PLG
             % lattice
             % this functions should only be used if the user knows what they are doing and may
             % destroy unique diameter data
-            maxInd = 0; % current highest index in facesOut
-            lengthFaces = 0; % current length of facesOut
-            numFaces = length(obj.faces);
+            maxInd = 0; % current highest index in strutsOut
+            lengthstruts = 0; % current length of strutsOut
+            numstruts = length(obj.struts);
             vertsOut = [];
-            facesOut = [];
-            splitStruts = cell(numFaces,1);
+            strutsOut = [];
+            splitStruts = cell(numstruts,1);
             % get tol
             obj = getTolerance(obj);
             tol = obj.tolerance;
-            struts2Check = 1:numFaces;
-            boundingBox = PLG.getBound(obj.vertices,obj.faces,struts2Check);
+            struts2Check = 1:numstruts;
+            boundingBox = PLG.getBound(obj.vertices,obj.struts,struts2Check);
             %% main loop
-            for inc=1:numFaces
+            for inc=1:numstruts
                 % all struts with intersecting BB
                 struts2CheckTmp = struts2Check;
                 struts2CheckTmp(inc) = [];
                 currentBB = boundingBox{inc};
-                currentP1 = obj.vertices(obj.faces(inc,1),:);
-                currentP2 = obj.vertices(obj.faces(inc,2),:);
+                currentP1 = obj.vertices(obj.struts(inc,1),:);
+                currentP2 = obj.vertices(obj.struts(inc,2),:);
                 isIntersect = PLG.findBbIntersect(currentBB,boundingBox(struts2CheckTmp));
                 potentialStruts = struts2CheckTmp(isIntersect);
                 % remove that are already connected properly
-                potentialStruts = PLG.removeNormalConStruts(currentP1,currentP2,potentialStruts,obj.faces,obj.vertices,tol);
-                potentialStruts = PLG.removeParralelStruts(currentP1,currentP2,potentialStruts,obj.faces,obj.vertices);
-                % check if any faces are already split if so grab their sub BB and
+                potentialStruts = PLG.removeNormalConStruts(currentP1,currentP2,potentialStruts,obj.struts,obj.vertices,tol);
+                potentialStruts = PLG.removeParralelStruts(currentP1,currentP2,potentialStruts,obj.struts,obj.vertices);
+                % check if any struts are already split if so grab their sub BB and
                 % eleminate any that do not intersect
-                % potentialStruts = PLG.findSplitStrutBB(splitStruts,potentialStruts,currentBB,currentP1,currentP2,facesOut,vertsOut,tol);
+                % potentialStruts = PLG.findSplitStrutBB(splitStruts,potentialStruts,currentBB,currentP1,currentP2,strutsOut,vertsOut,tol);
                 potentialStruts = [potentialStruts',ones(length(potentialStruts),1)];
                 if isempty(potentialStruts)
                     % no struts to break up
                     vertsOut = [vertsOut;currentP1;currentP2];
-                    facesOut = [facesOut;maxInd+1,maxInd+2];
+                    strutsOut = [strutsOut;maxInd+1,maxInd+2];
                     maxInd = maxInd+2;
-                    lengthFaces = lengthFaces+1; % number of new faces
+                    lengthstruts = lengthstruts+1; % number of new struts
                 else
-                    [vertsTmpOut,facesTmpOut] = PLG.findIntersect(currentP1,currentP2,...
-                        potentialStruts,obj.faces,obj.vertices,...
-                        facesOut,vertsOut,tol);
+                    [vertsTmpOut,strutsTmpOut] = PLG.findIntersect(currentP1,currentP2,...
+                        potentialStruts,obj.struts,obj.vertices,...
+                        strutsOut,vertsOut,tol);
                     vertsOut = [vertsOut;vertsTmpOut];
-                    facesTmpOut = facesTmpOut+maxInd;
+                    strutsTmpOut = strutsTmpOut+maxInd;
                     % debug: 
-                    % patch('Faces',obj.faces(inc,:),'Vertices',obj.vertices,'EdgeColor',[1,0,0]);
-                    % patch('Faces',obj.faces(potentialStruts,:),'Vertices',obj.vertices); hold on;
+                    % patch('struts',obj.struts(inc,:),'Vertices',obj.vertices,'EdgeColor',[1,0,0]);
+                    % patch('struts',obj.struts(potentialStruts,:),'Vertices',obj.vertices); hold on;
                     % scatter3(vertsOut(:,1),vertsOut(:,2),vertsOut(:,3));
 
-                    maxInd = facesTmpOut(end,2);
-                    facesOut = [facesOut;facesTmpOut];
-                    st = lengthFaces+1; % number of new faces
-                    en = st+size(facesTmpOut,1)-1;
+                    maxInd = strutsTmpOut(end,2);
+                    strutsOut = [strutsOut;strutsTmpOut];
+                    st = lengthstruts+1; % number of new struts
+                    en = st+size(strutsTmpOut,1)-1;
                     splitStruts{inc} = [st,en];
-                    lengthFaces = en;
+                    lengthstruts = en;
                 end
                 
             end
             %% final assignment and cleanup note that this destroys strut diameter
             obj.vertices = vertsOut;
-            obj.faces = facesOut;
+            obj.struts = strutsOut;
             % remake sphere and strut diams same as the first value
             obj.strutDiamter = obj.strutDiamter(1);
             obj.sphereDiameter = obj.sphereDiameter(1);
@@ -347,19 +353,127 @@ classdef PLG
         end
         function obj = getTolerance(obj)
             % get the shortest strut and divide by 1000
-            verts1 = obj.vertices(obj.faces(:,1),:);
-            verts2 = obj.vertices(obj.faces(:,2),:);
+            verts1 = obj.vertices(obj.struts(:,1),:);
+            verts2 = obj.vertices(obj.struts(:,2),:);
             lengthVerts = sum(sqrt((verts1-verts2).^2),2);
             obj.tolerance = min(lengthVerts)/10;
         end
         function obj = calcDx(obj)
             % returns the absolute vector length
-            p1 = obj.vertices(obj.faces(:,1),:);
-            p2 = obj.vertices(obj.faces(:,2),:);
+            p1 = obj.vertices(obj.struts(:,1),:);
+            p2 = obj.vertices(obj.struts(:,2),:);
             diffx = (p1(:,1)-p2(:,1));
             diffy = (p1(:,2)-p2(:,2));
             diffz = (p1(:,3)-p2(:,3));
             obj.dx = sqrt(diffx.^2+diffy.^2+diffz.^2);
+        end
+        function getProperties(obj,fileName)
+            % convert plg inputs into the function inputs
+            numNodes=size(obj.vertices,1);
+            numStruts=size(obj.struts,1); % Read Number of Struts
+            Struts=[obj.struts,obj.strutDiamter];
+            Nodes=[obj.vertices(:,1) obj.vertices(:,3) obj.vertices(:,2) obj.sphereDiameter];
+            
+            %% CHECK LATTICE DIMENSIONALITY
+            % Checks if nodes lie in a single plane
+            % 1=3D and 2=2D
+            if length(unique(Nodes(:,1)))==1 || length(unique(Nodes(:,2)))==1 || length(unique(Nodes(:,3)))==1
+                Dimen=2;
+                M=numStruts-(2*numNodes)+3;
+            else
+                Dimen=1;
+                M=numStruts-(3*numNodes)+ 6;
+            end
+            % Calculate Maxwell number and categorise
+            if M>0
+                LatBehav='Over-stiff';
+            elseif M==0
+                LatBehav='Just-stiff';
+            elseif M<0
+                LatBehav='Under-stiff';
+            end
+            % Write for Output Excel Sheet format
+            LatBehavOut=sprintf('%d (%s)',M,LatBehav);
+            
+            %% Analyse Struts
+            % Create Counters for Strut Manufacture Quality
+            RobustZoneCounter=0;
+            CompromisedZoneCounter=0;
+            FailedZoneCounter=0;
+            summaryData=cell(0);
+            for idxstrut=1:numStruts
+                %%CURRENT STRUT DETAILS
+                curStrut=Struts(idxstrut,:);
+                StrutDia=curStrut(3); % Current strut diameter read in from input csv or xls
+                %strutR=StrutDia/2; % Current strut radius
+                %Associated Node Coordiantes
+                X1=Nodes(curStrut(1),1:3); % Point 1 which is the centre of the first node in the connectivity data
+                X2=Nodes(curStrut(2),1:3);% Point 2 which is the centre of the second node in the connectivity data
+                %% Calculate Strut properties
+                strutL=pdist([X1;X2],'euclidean'); % Strut Axial Length calculated via the euclidean between sphere centre positions
+                strutAspectRatio=strutL/StrutDia;
+                %Angle to Platen
+                V1=X2-X1; % Vector 1 - Vector from connectivity points (axial vector of current strut)
+                X3=X1-[0 X1(2)+1 0]; %Create a coordinate point above the first coordinate X1
+                V2=X3-X1; % Vector 2 - Vector from point X1 to X3, this vector is perpendicular to the "platen"
+                ang=abs(90-abs(rad2deg(acos(dot(V1, V2) / (norm(V1)*norm(V2)))))); % Calculate smallest angle between vectors 1 & 2 which equals angle to platen
+                % Analyse Additive Manufacture Build Quality
+                if ang>=40
+                    BuildQuality='Robust zone';
+                    RobustZoneCounter=RobustZoneCounter+1;
+                elseif (30<=ang)&&(ang<=40)
+                    BuildQuality='Compromised zone';
+                    CompromisedZoneCounter=CompromisedZoneCounter+1;
+                elseif ang<=30
+                    BuildQuality='Failed Zone';
+                    FailedZoneCounter=FailedZoneCounter+1;
+                    
+                end
+                % Write current strut details to summaryData cell array for all strut
+                % details for excel spreadsheet output
+                summaryData{idxstrut,1}=idxstrut;
+                summaryData{idxstrut,2}=curStrut(1);
+                summaryData{idxstrut,3}=curStrut(2);
+                summaryData{idxstrut,4}=curStrut(3);
+                summaryData{idxstrut,5}=strutL;
+                summaryData{idxstrut,6}=ang;
+                summaryData{idxstrut,7}=BuildQuality;
+                summaryData{idxstrut,8}=strutAspectRatio;
+                
+            end
+            
+            %% plot angles
+            angles = cell2mat(summaryData(:,6));
+            numColours = 18;
+            colours = interp1(linspace(0,90,numColours),colormap(jet(numColours)),angles,'nearest');
+            plot(obj,colours);
+            a = gca;
+            a.CLim = [0,90];
+            colormap(jet(numColours))
+            colorbar;
+            xlabel('X');
+            ylabel('Y');
+            zlabel('Z');
+            %% Calculate Redundancy
+            strutTest=[cell2mat(summaryData(:,6)) cell2mat(summaryData(:,8))];
+            RowData=uniquetol(strutTest(:,1),0.05);
+            summaryRedun=[];
+            for idxRed=1:length(RowData)
+                curAngle=RowData(idxRed);
+                [cnt,~]=find(strutTest(:,1)<curAngle+0.05 & strutTest(:,1)>curAngle-0.05);
+                summaryRedun=[summaryRedun; curAngle length(cnt)];
+            end
+            %% CREATE STRUT PROPERTIES REVIEW XLS
+            Headers={'Maxwell Num','Num.of Robust Zone','Num.of Compromised Zone','Num.of Failed Zone';LatBehavOut,RobustZoneCounter,CompromisedZoneCounter,FailedZoneCounter};
+            Headers2={'Strut','Node 1','Node 2','Strut Diameter','Strut Length','Angle to Platen','Strut Quality Manufacture Zone','Aspect Ratio'};
+            xlswrite(fileName,Headers);
+            xlswrite(fileName,Headers2,'Sheet1','A3');
+            xlswrite(fileName,summaryData,'Sheet1','A4');
+            % Write repeated struts
+            xlswrite(fileName,{'Repeated Strut Details'},'Sheet1','J2');
+            xlswrite(fileName,{'Strut Angle'},'Sheet1','J3');
+            xlswrite(fileName,{'Repetitions'},'Sheet1','K3');
+            xlswrite(fileName,summaryRedun,'Sheet1','J4');
         end
     end
     methods % save out methods
@@ -391,7 +505,7 @@ classdef PLG
         function saveStl(obj,fileName,pathName)
             fullName  = [pathName,fileName];
             numFacets = obj.resolution*4;%number of facets created for one strut
-            numLinks = size(obj.faces,1);
+            numLinks = size(obj.struts,1);
             numVertices = size(obj.vertices,1);
             
             totalFacetsNoBall = numFacets*numLinks;
@@ -435,10 +549,10 @@ classdef PLG
             
             % write the connections
             fprintf(fid,'*Element, type=B31\n');
-            numLinks=size(obj.faces,1);
+            numLinks=size(obj.struts,1);
             for inc = 1:numLinks
-                c1 = obj.faces(inc,1);
-                c2 = obj.faces(inc,2);
+                c1 = obj.struts(inc,1);
+                c2 = obj.struts(inc,2);
                 fprintf(fid,'\t%d,\t%0.6e,\t%0.6e\n',inc,c1,c2);
             end
             
@@ -449,14 +563,14 @@ classdef PLG
             fullName = [pathName,fileName];
             
             numNodes=size(obj.vertices,1);
-            numLinks=size(obj.faces,1);
+            numLinks=size(obj.struts,1);
             xlswrite(fullName,numNodes,'Sheet1','A1');
             xlswrite(fullName,numLinks,'Sheet1','A2');
             
             locationVertices=strcat('A3:C',num2str(numNodes+2));
             xlswrite(fullName,obj.vertices,'Sheet1',locationVertices);
-            locationFaces=strcat('A',num2str(numNodes+3),':B',num2str(numNodes+2+numLinks));
-            xlswrite(fullName,obj.faces,'Sheet1',locationFaces);
+            locationstruts=strcat('A',num2str(numNodes+3),':B',num2str(numNodes+2+numLinks));
+            xlswrite(fullName,obj.struts,'Sheet1',locationstruts);
             
             % optional write depending on load type
             if obj.strutureType ==0
@@ -486,26 +600,26 @@ classdef PLG
             fullName = [pathName,fileName];
             
             numNodes=size(obj.vertices,1);
-            numLinks=size(obj.faces,1);
+            numLinks=size(obj.struts,1);
             
             dlmwrite(fullName,numNodes);
             dlmwrite(fullName,numLinks,'-append');
             data = [obj.vertices,obj.sphereDiameter];
             dlmwrite(fullName,data,'-append');
             
-            data = [obj.faces,obj.strutDiamter];
+            data = [obj.struts,obj.strutDiamter];
             dlmwrite(fullName,data,'-append');
         end
         
         function fid = faceCreate(obj,fid)
             radius = obj.strutDiamter/2;
-            numLinks = length(obj.faces);
+            numLinks = length(obj.struts);
             
             % calculate points on each facet then write said points to file
             % in the correct order
             for i=1:numLinks
-                point1 = obj.vertices(obj.faces(i,1),:);
-                point2 = obj.vertices(obj.faces(i,2),:);
+                point1 = obj.vertices(obj.struts(i,1),:);
+                point2 = obj.vertices(obj.struts(i,2),:);
                 vector = point2-point1;
                 u1 = vector/norm(vector);
                 if u1(3)==1
@@ -527,7 +641,7 @@ classdef PLG
                     vert2end(j,:)=absolutePointRotation+point2;
                 end
                 % scatter3(vertOut(:,1),vertOut(:,2),vertOut(:,3)) % scatter
-                %% join faces
+                %% join struts
                 for j=1:obj.resolution
                     % end of strut at point 1
                     datOut = circshift(vert1end,j);
@@ -580,8 +694,8 @@ classdef PLG
         end
         function fid = ballCreate(obj,fid)
             [x,y,z]=sphere(obj.sphereResolution); %create sphere with higher accuracy
-            ball.faces= convhull([x(:), y(:), z(:)]); %create triangle links
-            sizer = size(ball.faces,1);
+            ball.struts= convhull([x(:), y(:), z(:)]); %create triangle links
+            sizer = size(ball.struts,1);
             ball.vertices=[x(:),y(:),z(:)]; %store the points
             
             for i=1:size(obj.vertices,1)
@@ -589,9 +703,9 @@ classdef PLG
                 target=[offset(:,1)+obj.vertices(i,1),offset(:,2)+obj.vertices(i,2),offset(:,3)+obj.vertices(i,3)];
                 for j=1:sizer
                     %get values first end
-                    facet_a=target(ball.faces(j,1),:);
-                    facet_b=target(ball.faces(j,2),:);
-                    facet_c=target(ball.faces(j,3),:);
+                    facet_a=target(ball.struts(j,1),:);
+                    facet_b=target(ball.struts(j,2),:);
+                    facet_c=target(ball.struts(j,3),:);
                     normal=cross(facet_b-facet_a,facet_c-facet_a);
                     %write values
                     fwrite(fid,normal,'float32');           % write normal vector floating point numbers
@@ -604,7 +718,7 @@ classdef PLG
         end
     end
     methods (Static) %cell type methods
-        function [nodes, faces]= bcc(sx, sy, sz)
+        function [nodes, struts]= bcc(sx, sy, sz)
             nodes=[0 , 0, 0;...
                 sx, 0, 0;...
                 sx,sy, 0;...
@@ -614,9 +728,9 @@ classdef PLG
                 sx,sy,sz;...
                 0 ,sy,sz;...
                 sx/2,sy/2,sz/2];
-            faces=[1,9;2,9;3,9;4,9;5,9;6,9;7,9;8,9];
+            struts=[1,9;2,9;3,9;4,9;5,9;6,9;7,9;8,9];
         end
-        function [nodes, faces]= bcz(sx, sy, sz)
+        function [nodes, struts]= bcz(sx, sy, sz)
             nodes=[0 , 0, 0;...  1
                 sx, 0, 0;...  2
                 sx,sy, 0;...  3
@@ -626,7 +740,7 @@ classdef PLG
                 sx,sy,sz;...        7
                 0,sy,sz;...           8
                 sx/2,sy/2,sz/2];  % 9
-            faces=[1,9;...
+            struts=[1,9;...
                 1,5;...
                 2,9;...
                 2,6;...
@@ -639,14 +753,14 @@ classdef PLG
                 7,9;....
                 8,9];
         end
-        function [nodes, faces]= bcc2(sx, sy, sz)
+        function [nodes, struts]= bcc2(sx, sy, sz)
             nodes=[0,sy/2,sz/2;...
                 sx,sy/2,sz/2;...
                 sx/2,0,0;...
                 sx/2,0,sz;...
                 sx/2,sy,sz;...
                 sx/2,sy,0];
-            faces=[3,1;...
+            struts=[3,1;...
                 4,1;...
                 5,1;...
                 6,1;...
@@ -655,7 +769,7 @@ classdef PLG
                 2,5;...
                 2,6];
         end
-        function [nodes, faces]= fcc(sx, sy, sz)
+        function [nodes, struts]= fcc(sx, sy, sz)
             nodes=[0,0,0;...               1  0
                 sx,0,0;...                 2  0
                 sx,sy,0;...              3  0
@@ -670,7 +784,7 @@ classdef PLG
                 sx/2,sy,sz/2;...       12 2
                 0,sy/2,sz/2;...          13 2
                 sx,sy/2,sz/2]; %       14 2
-            faces=[1,13;...
+            struts=[1,13;...
                 1,9;...
                 1,11;...
                 2,9;...
@@ -695,7 +809,7 @@ classdef PLG
                 8,13;...
                 8,10];
         end
-        function [nodes, faces]= fccNoXY(sx, sy, sz)
+        function [nodes, struts]= fccNoXY(sx, sy, sz)
             nodes=[0,0,0;...             1  0
                 sx,0,0;...                 2  0
                 sx,sy,0;...              3  0
@@ -708,7 +822,7 @@ classdef PLG
                 sx/2,sy,sz/2;...       10 2
                 0,sy/2,sz/2;...          11 2
                 sx,sy/2,sz/2]; %       12 2
-            faces=[1,11;...
+            struts=[1,11;...
                 1,9;...
                 2,12;...
                 2,9;...
@@ -725,7 +839,7 @@ classdef PLG
                 8,10;...
                 8,11];
         end
-        function [nodes, faces]= fcz(sx, sy, sz)
+        function [nodes, struts]= fcz(sx, sy, sz)
             nodes=[0,0,0;...
                 sx,0,0;...
                 sx,sy,0;...
@@ -738,9 +852,9 @@ classdef PLG
                 sx,sy/2,sz/2;...
                 sx/2,sy,sz/2;...
                 0,sy/2,sz/2];
-            faces=[1,5;1,9;1,12;2,9;2,6;2,10;3,10;3,11;3,7;4,11;4,12;4,8;5,9;5,12;6,9;6,10;7,11;7,10;8,11;8,12];
+            struts=[1,5;1,9;1,12;2,9;2,6;2,10;3,10;3,11;3,7;4,11;4,12;4,8;5,9;5,12;6,9;6,10;7,11;7,10;8,11;8,12];
         end
-        function [nodes, faces]= box(sx, sy, sz)
+        function [nodes, struts]= box(sx, sy, sz)
             nodes=[0,0,0;... 1
                 sx,0,0;... 2
                 sx,sy,0;... 3
@@ -749,7 +863,7 @@ classdef PLG
                 sx,0,sz;... 6
                 sx,sy,sz;... 7
                 0,sy,sz]; % 8
-            faces=[1,2;...
+            struts=[1,2;...
                 2,3;...
                 1,4;...
                 3,4;...
@@ -762,7 +876,7 @@ classdef PLG
                 3,7;...
                 4,8];
         end
-        function [nodes, faces]= bccFcc(sx, sy, sz)
+        function [nodes, struts]= bccFcc(sx, sy, sz)
             nodes=[0,0,0;...
                 (sx),0,0;...
                 sx,sy,0;...
@@ -778,7 +892,7 @@ classdef PLG
                 0,sy/2,osz/2;...
                 sx,sy/2,sz/2];
         end
-        function [nodes, faces]= fbc(sx, sy, sz)
+        function [nodes, struts]= fbc(sx, sy, sz)
             nodes=[0,0,0;...
                 sx,0,0;...
                 0,sy,0;...
@@ -787,10 +901,10 @@ classdef PLG
                 sx,0,sz;...
                 0,sy,sz;...
                 sx,sy,sz];
-            faces=[2,8;4,6;1,7;3,5;1,6;2,5;4,7;3,8;... faces
+            struts=[2,8;4,6;1,7;3,5;1,6;2,5;4,7;3,8;... struts
                 1,8;2,7;4,5;3,6]; %body
         end
-        function [nodes, faces]= fbcxyz(sx, sy, sz)
+        function [nodes, struts]= fbcxyz(sx, sy, sz)
             nodes=[0,0,0;...
                 sx,0,0;...
                 0,sy,0;...
@@ -799,11 +913,11 @@ classdef PLG
                 sx,0 ,sz;...
                 0,sy,sz;...
                 sx,sy,sz];
-            faces=[1,2;1,3;4,3;4,2;2,6;6,8;8,4;1,5;5,7;7,3;5,6;7,8;... edges
-                1,4;2,3;2,8;4,6;1,7;3,5;1,6;2,5;4,7;3,8;7,6;5,8;... faces
+            struts=[1,2;1,3;4,3;4,2;2,6;6,8;8,4;1,5;5,7;7,3;5,6;7,8;... edges
+                1,4;2,3;2,8;4,6;1,7;3,5;1,6;2,5;4,7;3,8;7,6;5,8;... struts
                 1,8;2,7;4,5;3,6]; %body
         end
-        function [nodes, faces]= fbcz(sx, sy, sz)
+        function [nodes, struts]= fbcz(sx, sy, sz)
             nodes=[0,0,0;...
                 sx,0,0;...
                 0,sy,0;...
@@ -812,8 +926,8 @@ classdef PLG
                 sx,0,sz;...
                 0,sy,sz;...
                 sx,sy,sz];
-            faces=[2,6;8,4;1,5;7,3;... edges
-                2,8;4,6;1,7;3,5;1,6;2,5;4,7;3,8;... faces
+            struts=[2,6;8,4;1,5;7,3;... edges
+                2,8;4,6;1,7;3,5;1,6;2,5;4,7;3,8;... struts
                 1,8;2,7;4,5;3,6]; %body
         end
     end
@@ -900,7 +1014,7 @@ classdef PLG
         end
     end
     methods (Static) % strut splitting methods
-        function boundingBox = getBound(vertices,faces,desired)
+        function boundingBox = getBound(vertices,struts,desired)
             % get bounding box of ervery strut
             %[minX minY minZ]
             %[maxX maxY maxZ]
@@ -908,8 +1022,8 @@ classdef PLG
             numRequiredBB = length(desired);
             for inc = 1:numRequiredBB
                 index = desired(inc);
-                maxers = max(vertices(faces(index,1),:),vertices(faces(index,2),:));
-                miners = min(vertices(faces(index,1),:),vertices(faces(index,2),:));
+                maxers = max(vertices(struts(index,1),:),vertices(struts(index,2),:));
+                miners = min(vertices(struts(index,1),:),vertices(struts(index,2),:));
                 boundingBox{inc} = [miners;maxers];
             end
         end
@@ -927,14 +1041,14 @@ classdef PLG
                 isIntersect(inc) = inX & inY & inZ;
             end
         end
-        function potentialStruts = removeNormalConStruts(p0,p1,potentialStruts,faces,verts,tol)
+        function potentialStruts = removeNormalConStruts(p0,p1,potentialStruts,struts,verts,tol)
             % remove struts that are already joined properly
             numPotential = length(potentialStruts);
             test = false(numPotential,1);
             for inc = 1:numPotential
                 index = potentialStruts(inc);
-                q0 = verts(faces(index,1),:);
-                q1 = verts(faces(index,2),:);
+                q0 = verts(struts(index,1),:);
+                q1 = verts(struts(index,2),:);
                 diff1 = all(abs(p0-q0)<tol);
                 diff2 = all(abs(p1-q0)<tol);
                 diff3 = all(abs(p0-q1)<tol);
@@ -943,20 +1057,20 @@ classdef PLG
             end
             potentialStruts(test) = [];
         end
-        function potentialStruts = removeParralelStruts(p0,p1,potentialStruts,faces,verts)
+        function potentialStruts = removeParralelStruts(p0,p1,potentialStruts,struts,verts)
             v = (p0-p1)/norm(p0-p1);
             numPotential = length(potentialStruts);
             test = false(numPotential,1);
             for inc = 1:numPotential
                 index = potentialStruts(inc);
-                q0 = verts(faces(index,1),:);
-                q1 = verts(faces(index,2),:);
+                q0 = verts(struts(index,1),:);
+                q1 = verts(struts(index,2),:);
                 u = (q0-q1)/norm(q0-q1);
                 test(inc) = all(abs(v-u)<1e-6);
             end
             potentialStruts(test) = [];
         end
-        function potentialStruts =  findSplitStrutBB(splitStruts,potentialStruts,currentBB,currentP1,currentP2,facesOut,vertsOut,tol)
+        function potentialStruts =  findSplitStrutBB(splitStruts,potentialStruts,currentBB,currentP1,currentP2,strutsOut,vertsOut,tol)
             % return split strut and orriginal potenial intersecting struts
             potentialStruts = potentialStruts(:);
             numPotentialStruts = length(potentialStruts);
@@ -976,10 +1090,10 @@ classdef PLG
                 for inc = strutsToReplace'
                     desired = [desired,splitStruts{inc}(1):splitStruts{inc}(2)];
                 end
-                boundingBox = PLG.getBound(vertsOut,facesOut,desired);
+                boundingBox = PLG.getBound(vertsOut,strutsOut,desired);
                 isIntersect = PLG.findBbIntersect(currentBB,boundingBox);
                 potentialNewStruts = desired(isIntersect);
-                potentialNewStruts = PLG.removeNormalConStruts(currentP1,currentP2,potentialNewStruts,facesOut,vertsOut,tol);
+                potentialNewStruts = PLG.removeNormalConStruts(currentP1,currentP2,potentialNewStruts,strutsOut,vertsOut,tol);
                 % dont need to remove parallel as these are already removed in whole strut check
                 if isempty(potentialNewStruts)
                     % nothing
@@ -990,7 +1104,7 @@ classdef PLG
                 
             end
         end
-        function [vertsTmpOut,facesTmpOut]= findIntersect(p0,p1,potentialStruts,faces,verts,facesOut,vertsOut,tol)
+        function [vertsTmpOut,strutsTmpOut]= findIntersect(p0,p1,potentialStruts,struts,verts,strutsOut,vertsOut,tol)
             % for struts that have a coincident bounding box determine if they
             % intersect
             numPotentialStruts = size(potentialStruts,1);
@@ -1000,11 +1114,11 @@ classdef PLG
                 strutType = potentialStruts(inc,2);
                 index = potentialStruts(inc,1);
                 if strutType==1
-                    q0 = verts(faces(index,1),:);
-                    q1 = verts(faces(index,2),:);
+                    q0 = verts(struts(index,1),:);
+                    q1 = verts(struts(index,2),:);
                 else
-                    q0 = vertsOut(facesOut(index,1),:);
-                    q1 = vertsOut(facesOut(index,2),:);
+                    q0 = vertsOut(strutsOut(index,1),:);
+                    q1 = vertsOut(strutsOut(index,2),:);
                 end
                 [dist,sc,p1Out,p2Out] = PLG.distBetween2Segment(p0, p1, q0, q1);
                 if dist<tol
@@ -1022,9 +1136,9 @@ classdef PLG
             [order,index] = uniquetol(order,tol,'DataScale',1);
             coordinates = coordinates(index,:);
             % create a face and verts array
-            numNewFaces = length(order)+1;
+            numNewstruts = length(order)+1;
             vertsTmpOut = [p1;coordinates;p0];
-            facesTmpOut = [1:numNewFaces;2:(numNewFaces+1)]';
+            strutsTmpOut = [1:numNewstruts;2:(numNewstruts+1)]';
         end
         function isIn = checkIn(pointsMain,pointsCheck)
             % determine if pointsCheck intersect pointsMain
