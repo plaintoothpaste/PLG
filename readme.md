@@ -12,6 +12,7 @@ The following is a list of methods and a quick overview of their function, it sh
 - load: loads an existing custom input file.
 - translate: translates the lattice structure.
 - rotate: rotates the lattice structure
+- plus:   combines an existing PLG object into another plg object usefull for generating complex lattice shapes
 - plot: displays a rendering of the beam model that represents the lattice.
 - splitStruts: New method that splits strut intersections that are not already defined and then creates a new lattice to replace the old. This method is not thoroughly tested and should be considered buggy. This method calls many subfunctions stored in their own method group.
 - save: this method is in its own method group and each sub save method will be named according to its save out type. Eg saveStl saves out stl format.

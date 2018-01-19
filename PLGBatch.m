@@ -1,14 +1,14 @@
 projectName = 'latconv';
-unitCell = {'bcz'};
+unitCell = {'fcz'};
 resolution = 12;
-strut_dia = 300e-3;
-ball_dia = 1.5*strut_dia ;
-reps_x = 3;
-reps_y = 3;
-reps_z = 3;
-unitSizeX = 2;
-unitSizeY = 2;
-unitSizeZ = 2;
+strut_dia = 0.8;
+ball_dia = 1*strut_dia ;
+reps_x = 21;
+reps_y = 48;
+reps_z = 20;
+unitSizeX = 10;
+unitSizeY = 10;
+unitSizeZ = 10;
 
 %% main loop
 for unitInc = 1:length(unitCell);

@@ -27,7 +27,7 @@ classdef PLG
         orginy;
         orginz;
         
-        validExtensions  = {'xls'; 'csv'; 'custom'};
+        validExtensions  = {'xlsx'; 'csv'; 'custom'};
         filterSpecOut = {'*.stl','3D geometry file';...
             '*.bdf','Nastran input file';...
             '*.inp','Abaqus input file';...
@@ -60,7 +60,7 @@ classdef PLG
                         obj.sphereDiameter = varargin{5};
                         obj.sphereResolution = varargin{6};
                     else
-                        obj.sphereDiameter = 0;
+                        obj.sphereDiameter = [];
                         obj.sphereResolution = 2;
                     end
                     
@@ -140,7 +140,9 @@ classdef PLG
             numNodes = size(obj.vertices,1);
             numStruts = size(obj.struts,1);
             
-            obj.sphereDiameter = ones(numNodes,1)*obj.sphereDiameter;
+            if ~isempty(obj.sphereDiameter)
+                obj.sphereDiameter = ones(numNodes,1)*obj.sphereDiameter;
+            end
             obj.strutDiamter = ones(numStruts,1)*obj.strutDiamter;
         end
         function obj = load(obj,file)
@@ -150,40 +152,26 @@ classdef PLG
             switch extension
                 case obj.validExtensions{1}
                     % xls
-                    error('TODO');
+                    data = xlsread(file);
                 case obj.validExtensions{2}
                     % csv
                     data = csvread(file);
-                    numNodes=data(1,1);
-                    numLinks=data(2,1);
-                    % data
-                    obj.vertices = data(3:numNodes+2,1:3);
-                    
-                    obj.struts    = data(numNodes+3:numNodes+numLinks+2,1:2);
-                    obj.strutDiameter = data(numNodes+3:numNodes+numLinks+2,3);
-                    if size(data,2)==3
-                        % no sphere diameter supplied
-                        obj.sphereDiameter = zeros(numNodes,1);
-                    else
-                        % sphere diameter supplied
-                        obj.sphereDiameter = data(3:numNodes+2,4);
-                    end
                 case obj.validExtensions{3}
                     % custom
                     data = csvread(file);
-                    numNodes=data(1,1);
-                    numLinks=data(2,1);
-                    % data
-                    obj.vertices = data(3:numNodes+2,1:3);
-                    obj.struts    = data(numNodes+3:numNodes+numLinks+2,1:2);
-                    obj.strutDiamter = data(numNodes+3:numNodes+numLinks+2,3);
-                    if size(data,2)==3
-                        % no sphere diameter supplied
-                        obj.sphereDiameter = zeros(numNodes,1);
-                    else
-                        % sphere diameter supplied
-                        obj.sphereDiameter = data(3:numNodes+2,4);
-                    end
+            end
+            numNodes=data(1,1);
+            numLinks=data(2,1);
+            % data
+            obj.vertices = data(3:numNodes+2,1:3);
+            obj.struts    = data(numNodes+3:numNodes+numLinks+2,1:2);
+            obj.strutDiamter = data(numNodes+3:numNodes+numLinks+2,3);
+            if size(data,2)==3
+                % no sphere diameter supplied
+                obj.sphereDiameter = zeros(numNodes,1);
+            else
+                % sphere diameter supplied
+                obj.sphereDiameter = data(3:numNodes+2,4);
             end
         end
         function obj = translate(obj,x,y,z)
@@ -197,7 +185,9 @@ classdef PLG
             
             % duplicate vertices
             [obj.vertices,i,indexn]=uniquetol(obj.vertices,obj.tolerance,'ByRows',1,'DataScale',1);
-            obj.sphereDiameter = obj.sphereDiameter(i);
+            if ~isempty(obj.sphereDiameter)
+                obj.sphereDiameter = obj.sphereDiameter(i);
+            end
             obj.struts = indexn(obj.struts);
             
             % duplicate struts
@@ -475,6 +465,17 @@ classdef PLG
             xlswrite(fileName,{'Repetitions'},'Sheet1','K3');
             xlswrite(fileName,summaryRedun,'Sheet1','J4');
         end
+        function obj = plus(obj,obj1)
+            % add obj1 to obj2
+            newStruts = obj1.struts+max(obj.struts(:));
+            obj.struts = [obj.struts;newStruts];
+            obj.strutDiamter = [obj.strutDiamter;obj1.strutDiamter];
+            obj.sphereDiameter = [obj.sphereDiameter;obj1.sphereDiameter];
+            obj.vertices = [obj.vertices;obj1.vertices];
+            
+            % remove any matching struts
+            obj = cleanLattice(obj);
+        end
     end
     methods % save out methods
         function save(obj)
@@ -576,9 +577,9 @@ classdef PLG
             if obj.strutureType ==0
                 % loaded custom
                 locationSpheres = strcat('D3:D',num2str(numNodes+2));
-                xlswrite(fullName,obj.spheres,'Sheet1',locationSpheres);
+                xlswrite(fullName,obj.sphereDiameter,'Sheet1',locationSpheres);
                 locationDiameters = strcat('C',num2str(numNodes+3),':C',num2str(numNodes+2+numLinks));
-                xlswrite(fullName,obj.diameters,'Sheet1',locationDiameters);
+                xlswrite(fullName,obj.strutDiamter,'Sheet1',locationDiameters);
             else
                 % loaded regular
                 if ~isempty(obj.sphereDiameter)
