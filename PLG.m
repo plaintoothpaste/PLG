@@ -11,7 +11,7 @@ classdef PLG
         latticeType;
         resolution;
         sphereResolution;
-        strutDiamter;
+        strutDiameter;
         % sphereAddition;
         sphereDiameter;
         vertices;
@@ -32,7 +32,7 @@ classdef PLG
             '*.bdf','Nastran input file';...
             '*.inp','Abaqus input file';...
             '*.bin','Binary storage file';...
-            '*.xls','Excel format';...
+            '*.xlsx','Excel format';...
             '*.custom','Custom csv format for debug etc'};
         strutureType;
         tolerance; % defined as 1/100 of the shortest length present
@@ -55,7 +55,7 @@ classdef PLG
                     %   input order same as properties order
                     obj.latticeType = varargin{1};
                     obj.resolution = varargin{2};
-                    obj.strutDiamter = varargin{3};
+                    obj.strutDiameter = varargin{3};
                     if varargin{4}==1
                         obj.sphereDiameter = varargin{5};
                         obj.sphereResolution = varargin{6};
@@ -143,7 +143,7 @@ classdef PLG
             if ~isempty(obj.sphereDiameter)
                 obj.sphereDiameter = ones(numNodes,1)*obj.sphereDiameter;
             end
-            obj.strutDiamter = ones(numStruts,1)*obj.strutDiamter;
+            obj.strutDiameter = ones(numStruts,1)*obj.strutDiameter;
         end
         function obj = load(obj,file)
             % load a custom beam input file to generate a lattice structure
@@ -159,13 +159,15 @@ classdef PLG
                 case obj.validExtensions{3}
                     % custom
                     data = csvread(file);
+                otherwise
+                    error('not a suitable load format');
             end
             numNodes=data(1,1);
             numLinks=data(2,1);
             % data
             obj.vertices = data(3:numNodes+2,1:3);
             obj.struts    = data(numNodes+3:numNodes+numLinks+2,1:2);
-            obj.strutDiamter = data(numNodes+3:numNodes+numLinks+2,3);
+            obj.strutDiameter = data(numNodes+3:numNodes+numLinks+2,3);
             if size(data,2)==3
                 % no sphere diameter supplied
                 obj.sphereDiameter = zeros(numNodes,1);
@@ -196,14 +198,12 @@ classdef PLG
             obj.struts(test,1) = tmp(test,2);
             obj.struts(test,2) = tmp(test,1);
             [obj.struts,i] = unique(obj.struts,'rows');
-            obj.strutDiamter = obj.strutDiamter(i);
-            
-            
+            obj.strutDiameter = obj.strutDiameter(i);
             
             % duplicate struts zero length
             test = obj.struts(:,1)==obj.struts(:,2);
             obj.struts(test,:)=[];
-            obj.strutDiamter(test)=[];
+            obj.strutDiameter(test)=[];
         end
         function obj = rotate(obj,wx,wy,wz)
             % rotations are in degrees about the main axes
@@ -336,7 +336,7 @@ classdef PLG
             obj.vertices = vertsOut;
             obj.struts = strutsOut;
             % remake sphere and strut diams same as the first value
-            obj.strutDiamter = obj.strutDiamter(1);
+            obj.strutDiameter = obj.strutDiameter(1);
             obj.sphereDiameter = obj.sphereDiameter(1);
             obj = addDiams(obj);
             obj = cleanLattice(obj);
@@ -346,7 +346,7 @@ classdef PLG
             verts1 = obj.vertices(obj.struts(:,1),:);
             verts2 = obj.vertices(obj.struts(:,2),:);
             lengthVerts = sum(sqrt((verts1-verts2).^2),2);
-            obj.tolerance = min(lengthVerts)/10;
+            obj.tolerance = min(lengthVerts)/15;
         end
         function obj = calcDx(obj)
             % returns the absolute vector length
@@ -361,7 +361,7 @@ classdef PLG
             % convert plg inputs into the function inputs
             numNodes=size(obj.vertices,1);
             numStruts=size(obj.struts,1); % Read Number of Struts
-            Struts=[obj.struts,obj.strutDiamter];
+            Struts=[obj.struts,obj.strutDiameter];
             Nodes=[obj.vertices(:,1) obj.vertices(:,3) obj.vertices(:,2) obj.sphereDiameter];
             
             %% CHECK LATTICE DIMENSIONALITY
@@ -469,12 +469,17 @@ classdef PLG
             % add obj1 to obj2
             newStruts = obj1.struts+max(obj.struts(:));
             obj.struts = [obj.struts;newStruts];
-            obj.strutDiamter = [obj.strutDiamter;obj1.strutDiamter];
+            obj.strutDiameter = [obj.strutDiameter;obj1.strutDiamter];
             obj.sphereDiameter = [obj.sphereDiameter;obj1.sphereDiameter];
             obj.vertices = [obj.vertices;obj1.vertices];
             
             % remove any matching struts
             obj = cleanLattice(obj);
+        end
+        function obj = modResolution(obj,resDia,resBall)
+            % allows you to change the resolution
+            obj.resolution = resDia;
+            obj.sphereResolution = resBall;
         end
     end
     methods % save out methods
@@ -579,7 +584,7 @@ classdef PLG
                 locationSpheres = strcat('D3:D',num2str(numNodes+2));
                 xlswrite(fullName,obj.sphereDiameter,'Sheet1',locationSpheres);
                 locationDiameters = strcat('C',num2str(numNodes+3),':C',num2str(numNodes+2+numLinks));
-                xlswrite(fullName,obj.strutDiamter,'Sheet1',locationDiameters);
+                xlswrite(fullName,obj.strutDiameter,'Sheet1',locationDiameters);
             else
                 % loaded regular
                 if ~isempty(obj.sphereDiameter)
@@ -592,7 +597,7 @@ classdef PLG
                     xlswrite(fullName,data,'Sheet1',locationSpheres);
                 end
                 locationDiameters = strcat('C',num2str(numNodes+3),':C',num2str(numNodes+2+numLinks));
-                data = ones(numLinks,1)*obj.strutDiamter;
+                data = ones(numLinks,1)*obj.strutDiameter;
                 xlswrite(fullName,data,'Sheet1',locationDiameters);
             end
         end
@@ -608,12 +613,12 @@ classdef PLG
             data = [obj.vertices,obj.sphereDiameter];
             dlmwrite(fullName,data,'-append');
             
-            data = [obj.struts,obj.strutDiamter];
+            data = [obj.struts,obj.strutDiameter];
             dlmwrite(fullName,data,'-append');
         end
         
         function fid = faceCreate(obj,fid)
-            radius = obj.strutDiamter/2;
+            radius = obj.strutDiameter/2;
             numLinks = length(obj.struts);
             
             % calculate points on each facet then write said points to file
@@ -623,7 +628,7 @@ classdef PLG
                 point2 = obj.vertices(obj.struts(i,2),:);
                 vector = point2-point1;
                 u1 = vector/norm(vector);
-                if u1(3)==1
+                if u1(3)==1 || u1(3)==-1
                     v1 = [1,0,0];
                 else
                     v1 = cross([0,0,1],u1);
