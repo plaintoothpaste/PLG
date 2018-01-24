@@ -29,7 +29,7 @@ classdef PLG
         
         validExtensions  = {'xlsx'; 'csv'; 'custom'};
         filterSpecOut = {'*.stl','3D geometry file';...
-            '*.bdf','Nastran input file';...
+            '*.amf','additive manufacturing format';...
             '*.inp','Abaqus input file';...
             '*.bin','Binary storage file';...
             '*.xlsx','Excel format';...
@@ -79,9 +79,7 @@ classdef PLG
                     
                     % generate the lattice structure based on inputs
                     obj = latticeGenerate(obj); % generate structure
-                    obj = cellReplication(obj); % replicate the unit cells generated above
-                    obj = addDiams(obj);        % apply unique diameters to each strut
-                    obj = cleanLattice(obj);    % remove duplicate lattice intersections and struts
+                    
                 otherwise
                     error('Incorrect number of inputs');
             end
@@ -490,19 +488,32 @@ classdef PLG
             switch filterIndex
                 case 1
                     % stl
+                    obj = cellReplication(obj); % replicate the unit cells generated above
+                    obj = addDiams(obj);        % apply unique diameters to each strut
+                    obj = cleanLattice(obj);    % remove duplicate lattice intersections and struts
                     saveStl(obj,fileName,pathName);
                 case 2
-                    % Nastran
+                    % AMF format
+                    saveAmf(obj,fileName,pathName);
                     % TODO
                 case 3
                     % ABAQUS
+                    obj = cellReplication(obj); % replicate the unit cells generated above
+                    obj = addDiams(obj);        % apply unique diameters to each strut
+                    obj = cleanLattice(obj);    % remove duplicate lattice intersections and struts
                     saveAbaqus(obj,fileName,pathName)
                 case 4
                     % BINARY
                     % TODO
                 case 5
+                    obj = cellReplication(obj); % replicate the unit cells generated above
+                    obj = addDiams(obj);        % apply unique diameters to each strut
+                    obj = cleanLattice(obj);    % remove duplicate lattice intersections and struts
                     saveExcel(obj,fileName,pathName)
                 case 6
+                    obj = cellReplication(obj); % replicate the unit cells generated above
+                    obj = addDiams(obj);        % apply unique diameters to each strut
+                    obj = cleanLattice(obj);    % remove duplicate lattice intersections and struts
                     saveCustom(obj,fileName,pathName)
                 otherwise
                     error('No file saved')
@@ -616,7 +627,287 @@ classdef PLG
             data = [obj.struts,obj.strutDiameter];
             dlmwrite(fullName,data,'-append');
         end
+        function saveAmf(obj,fileName,pathName)
+            fullName  = [pathName,fileName];
+            % create object to hold the xml data 
+            amfDoc = com.mathworks.xml.XMLUtils.createDocument('amf');
+            amfNode = amfDoc.getDocumentElement;
+            amfNode.setAttribute('unit','millimeter');
+            
+            %write the geom for a unit cell
+            amfDoc = xmlUnitObj(obj,amfDoc,amfNode,0);
+            
+            %write the geom for a single ball
+            amfDoc = xmlBallObj(obj,amfDoc,amfNode,1);
+            
+            % replication
+            amfDoc = xmlReplication(obj,amfDoc,amfNode,2);
+            
+            xmlwrite(fullName,amfDoc);
+            zip(fullName,fullName);
+        end
         
+        function amfDoc = xmlBallObj(obj,amfDoc,amfNode,idNum)
+            % write out an object to represent a ball and create
+            % constellation points at every vertex
+            % in node must be the amf level node
+            objNode = amfDoc.createElement('object');
+            objNode.setAttribute('id',num2str(idNum));
+            amfNode.appendChild(objNode);
+            
+            meshNode = amfDoc.createElement('mesh');
+            objNode.appendChild(meshNode);
+            
+            verticesNode = amfDoc.createElement('vertices');
+            meshNode.appendChild(verticesNode);
+            
+            % write the vertexs
+            [x,y,z]=sphere(obj.sphereResolution); %create sphere with higher accuracy
+            ball.struts= convhull([x(:), y(:), z(:)]); %create triangle links
+            ball.vertices=[x(:),y(:),z(:)]; %store the points
+            ball.vertices = ball.vertices*obj.strutDiameter/2;
+            for inc = 1:size(ball.vertices,1)
+                vertexNode = amfDoc.createElement('vertex');
+                verticesNode.appendChild(vertexNode);
+                
+                coordNode = amfDoc.createElement('coordinates');
+                vertexNode.appendChild(coordNode);
+                
+                xNode = amfDoc.createElement('x');
+                val = sprintf('%3.8f',ball.vertices(inc,1));
+                xNode.appendChild(amfDoc.createTextNode(val));
+                coordNode.appendChild(xNode);
+                
+                yNode = amfDoc.createElement('y');
+                val = sprintf('%3.8f',ball.vertices(inc,2));
+                yNode.appendChild(amfDoc.createTextNode(val));
+                coordNode.appendChild(yNode);
+                
+                zNode = amfDoc.createElement('z');
+                val = sprintf('%3.8f',ball.vertices(inc,3));
+                zNode.appendChild(amfDoc.createTextNode(val));
+                coordNode.appendChild(zNode);
+            end
+            
+            %write the connections
+            volumeNode = amfDoc.createElement('volume');
+            meshNode.appendChild(volumeNode);
+            for inc = 1:size(ball.struts,1)
+                triangleNode = amfDoc.createElement('triangle');
+                volumeNode.appendChild(triangleNode);
+                
+                v1Node = amfDoc.createElement('v1');
+                val = sprintf('%0.0f',ball.struts(inc,1)-1);
+                v1Node.appendChild(amfDoc.createTextNode(val));
+                triangleNode.appendChild(v1Node);
+                
+                v2Node = amfDoc.createElement('v2');
+                val = sprintf('%0.0f',ball.struts(inc,2)-1);
+                v2Node.appendChild(amfDoc.createTextNode(val));
+                triangleNode.appendChild(v2Node);
+                
+                v3Node = amfDoc.createElement('v3');
+                val = sprintf('%0.0f',ball.struts(inc,3)-1);
+                v3Node.appendChild(amfDoc.createTextNode(val));
+                triangleNode.appendChild(v3Node);
+            end
+        end
+        function amfDoc = xmlUnitObj(obj,amfDoc,amfNode,idNum)
+            % write a single unit cell as an object
+            radius = obj.strutDiameter/2;
+            numLinks = length(obj.struts);
+            
+            % setup the object
+            objNode = amfDoc.createElement('object');
+            objNode.setAttribute('id',num2str(idNum));
+            amfNode.appendChild(objNode);
+            
+            meshNode = amfDoc.createElement('mesh');
+            objNode.appendChild(meshNode);
+            
+            verticesNode = amfDoc.createElement('vertices');
+            meshNode.appendChild(verticesNode);
+            
+            verts = cell(numLinks,1);
+            struts = cell(numLinks,1);
+            for i=1:numLinks
+                point1 = obj.vertices(obj.struts(i,1),:);
+                point2 = obj.vertices(obj.struts(i,2),:);
+                vector = point2-point1;
+                u1 = vector/norm(vector);
+                if u1(3)==1 || u1(3)==-1
+                    v1 = [1,0,0];
+                else
+                    v1 = cross([0,0,1],u1);
+                    v1 = v1/norm(v1);
+                end
+                offset = radius*v1;
+                
+                % verts
+                vert1end = zeros(obj.resolution,3);
+                vert2end = zeros(obj.resolution,3);
+                for j=1:obj.resolution
+                    Qrot1 = PLG.qGetRotQuaternion((j-1)*2*pi/obj.resolution, u1);
+                    absolutePointRotation = PLG.qRotatePoint(offset', Qrot1)';
+                    % end 1
+                    vert1end(j,:)=absolutePointRotation+point1;
+                    % end 2
+                    vert2end(j,:)=absolutePointRotation+point2;
+                end
+                verts{i} = [point1;vert1end;point2;vert2end];
+                
+                %struts
+                s1 = zeros(obj.resolution,3);
+                s2 = zeros(obj.resolution,3);
+                s3 = zeros(obj.resolution,3);
+                s4 = zeros(obj.resolution,3);
+                end1 = [1:obj.resolution]+1;
+                end2 = [1:obj.resolution]+obj.resolution+2;
+                end1 = circshift(end1,-1);
+                end2 = circshift(end2,-1);
+                for j=1:obj.resolution
+                    end1 = circshift(end1,1);
+                    end2 = circshift(end2,1);
+                    %middle point1 -> end 1
+                    s1(j,:) = [1,end1(1),end1(2)];
+                    %middle point2 -> end 2
+                    s2(j,:) = [obj.resolution+2,end2(1),end2(2)];
+                    %end1 -> end2
+                    s3(j,:) = [end1(1),end1(2),end2(1)];
+                    %end2 -> end1
+                    s4(j,:) = [end2(2),end2(1),end1(2)];
+                end
+                struts{i} = [s1;s2;s3;s4];
+            end
+            
+            %% join cells
+            strutsOut = [];
+            vertsOut = [];
+            count = 0;
+            for inc = 1:numLinks
+                strutsOut = [strutsOut;struts{i}+count];
+                count = max(strutsOut(:));
+                vertsOut = [vertsOut;verts{inc}];
+            end
+            
+            % make verts unique
+            [vertsOut,i,indexn]=uniquetol(vertsOut,1e-8,'ByRows',1,'DataScale',1);
+            strutsOut = indexn(strutsOut);
+            
+            %% write verts then connections
+            for inc = 1:size(vertsOut,1)
+                vertexNode = amfDoc.createElement('vertex');
+                verticesNode.appendChild(vertexNode);
+                
+                coordNode = amfDoc.createElement('coordinates');
+                vertexNode.appendChild(coordNode);
+                
+                xNode = amfDoc.createElement('x');
+                val = sprintf('%3.8f',vertsOut(inc,1));
+                xNode.appendChild(amfDoc.createTextNode(val));
+                coordNode.appendChild(xNode);
+                
+                yNode = amfDoc.createElement('y');
+                val = sprintf('%3.8f',vertsOut(inc,2));
+                yNode.appendChild(amfDoc.createTextNode(val));
+                coordNode.appendChild(yNode);
+                
+                zNode = amfDoc.createElement('z');
+                val = sprintf('%3.8f',vertsOut(inc,3));
+                zNode.appendChild(amfDoc.createTextNode(val));
+                coordNode.appendChild(zNode);
+            end
+            
+            volumeNode = amfDoc.createElement('volume');
+            meshNode.appendChild(volumeNode);
+            for inc = 1:size(strutsOut,1)
+                triangleNode = amfDoc.createElement('triangle');
+                volumeNode.appendChild(triangleNode);
+                
+                v1Node = amfDoc.createElement('v1');
+                val = sprintf('%0.0f',strutsOut(inc,1)-1);
+                v1Node.appendChild(amfDoc.createTextNode(val));
+                triangleNode.appendChild(v1Node);
+                
+                v2Node = amfDoc.createElement('v2');
+                val = sprintf('%0.0f',strutsOut(inc,2)-1);
+                v2Node.appendChild(amfDoc.createTextNode(val));
+                triangleNode.appendChild(v2Node);
+                
+                v3Node = amfDoc.createElement('v3');
+                val = sprintf('%0.0f',strutsOut(inc,3)-1);
+                v3Node.appendChild(amfDoc.createTextNode(val));
+                triangleNode.appendChild(v3Node);
+            end
+        end
+        function amfDoc = xmlReplication(obj,amfDoc,amfNode,idNum)
+            % determine locations for the constellation tool for unit cells
+            % then ball
+            conNode = amfDoc.createElement('constellation');
+            conNode.setAttribute('id',num2str(idNum));
+            amfNode.appendChild(conNode);
+            
+            for incX = 1:obj.repsx
+                posX = (incX-1)*obj.usx;
+                for incY = 1:obj.repsy
+                    posY = (incY-1)*obj.usy;
+                    for incZ = 1:obj.repsz
+                        posZ = (incZ-1)*obj.usz;
+                        
+                        instNode = amfDoc.createElement('instance');
+                        instNode.setAttribute('objectid','0');
+                        conNode.appendChild(instNode);
+                        
+                        dNode = amfDoc.createElement('deltax');
+                        val = sprintf('%0.0f',posX);
+                        dNode.appendChild(amfDoc.createTextNode(val));
+                        instNode.appendChild(dNode);
+
+                        dNode = amfDoc.createElement('deltay');
+                        val = sprintf('%0.0f',posY);
+                        dNode.appendChild(amfDoc.createTextNode(val));
+                        instNode.appendChild(dNode);
+                        
+                        dNode = amfDoc.createElement('deltaz');
+                        val = sprintf('%0.0f',posZ);
+                        dNode.appendChild(amfDoc.createTextNode(val));
+                        instNode.appendChild(dNode);
+                    end
+                end
+            end
+            
+            %balls
+            if isempty(obj.sphereDiameter)
+                return;
+            end
+            
+            conNode = amfDoc.createElement('constellation');
+            conNode.setAttribute('id',num2str(idNum+1));
+            amfNode.appendChild(conNode);
+            
+            obj = cellReplication(obj);
+            
+            for inc = 1:size(obj.vertices,1)
+                instNode = amfDoc.createElement('instance');
+                instNode.setAttribute('objectid','1');
+                conNode.appendChild(instNode);
+                
+                dNode = amfDoc.createElement('deltax');
+                val = sprintf('%0.0f',obj.vertices(inc,1));
+                dNode.appendChild(amfDoc.createTextNode(val));
+                instNode.appendChild(dNode);
+                
+                dNode = amfDoc.createElement('deltay');
+                val = sprintf('%0.0f',obj.vertices(inc,2));
+                dNode.appendChild(amfDoc.createTextNode(val));
+                instNode.appendChild(dNode);
+                
+                dNode = amfDoc.createElement('deltaz');
+                val = sprintf('%0.0f',obj.vertices(inc,3));
+                dNode.appendChild(amfDoc.createTextNode(val));
+                instNode.appendChild(dNode);
+            end
+        end
         function fid = faceCreate(obj,fid)
             radius = obj.strutDiameter/2;
             numLinks = length(obj.struts);

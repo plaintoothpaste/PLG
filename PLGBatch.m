@@ -1,11 +1,11 @@
 projectName = 'latconv';
 unitCell = {'fcz'};
-resolution = 12;
+resolution = 5;
 strut_dia = 0.8;
 ball_dia = 1*strut_dia ;
-reps_x = 21;
-reps_y = 48;
-reps_z = 20;
+reps_x = 10;
+reps_y = 10;
+reps_z = 12;
 unitSizeX = 10;
 unitSizeY = 10;
 unitSizeZ = 10;
@@ -31,8 +31,8 @@ for unitInc = 1:length(unitCell);
                                             repXInc,repYInc,repZInc,...
                                             0,0,0);
                                         %saveCustom(obj,[name,'.custom'],[cd,filesep]);
-                                        %saveStl(obj,[name,'.stl'],[cd,filesep]);
-                                        getProperties(obj,[name,'.xlsx'])
+                                        saveAmf(obj,[name,'.amf'],[cd,filesep]);
+                                        %getProperties(obj,[name,'.xlsx'])
                                     end
                                 end
                             end
