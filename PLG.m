@@ -84,36 +84,7 @@ classdef PLG
                     error('Incorrect number of inputs');
             end
         end
-        function obj = latticeGenerate(obj)
-            % generates a latticeStructure ready for simulation or saving as an stl etc
-            % all the below unit cells are stored in their own method section
-            switch obj.latticeType
-                case 'bcc' % BCC Cell
-                    [obj.vertices, obj.struts] = PLG.bcc(obj.usx,obj.usy,obj.usz);
-                case 'bcc2' % BCC Cell with no cantilevers
-                    [obj.vertices, obj.struts] = PLG.bcc2(obj.usx,obj.usy,obj.usz);
-                case 'bcz' % BCC Cell
-                    [obj.vertices, obj.struts] = PLG.bcz(obj.usx,obj.usy,obj.usz);
-                case 'fcc'
-                    [obj.vertices, obj.struts] = PLG.fcc(obj.usx,obj.usy,obj.usz);
-                case 'fccNoXY'
-                    [obj.vertices, obj.struts] = PLG.fccNoXY(obj.usx,obj.usy,obj.usz);
-                case 'fbcxyz'
-                    [obj.vertices, obj.struts] = PLG.fbcxyz(obj.usx,obj.usy,obj.usz);
-                case 'fcz'
-                    [obj.vertices, obj.struts] = PLG.fcz(obj.usx,obj.usy,obj.usz);
-                case 'fbcz'
-                    [obj.vertices, obj.struts] = PLG.fbcz(obj.usx,obj.usy,obj.usz);
-                case 'bcc_fcc'
-                    [obj.vertices, obj.struts] = PLG.bccFcc(obj.usx,obj.usy,obj.usz);
-                case 'fbc'
-                    [obj.vertices, obj.struts] = PLG.fbc(obj.usx,obj.usy,obj.usz);
-                case 'box'
-                    [obj.vertices, obj.struts] = PLG.box(obj.usx,obj.usy,obj.usz);
-            end
-            % translsate the unit cell to the correct location
-            obj = translate(obj,obj.orginx,obj.orginy,obj.orginz);
-        end
+        
         function obj = cellReplication(obj)
             xPlacement = 0:obj.usx:obj.usx*(obj.repsx-1);
             yPlacement = 0:obj.usy:obj.usy*(obj.repsy-1);
@@ -132,57 +103,28 @@ classdef PLG
             strutCounter = strutCounter*numStruts;
             strutOut = arrayfun(@(x) obj.struts + x,strutCounter,'UniformOutput',0);
             obj.struts = cell2mat(strutOut(:));
-        end
+        end %apply unit cell replications not for 3mf or amf saveout
         function obj = addDiams(obj)
             % add both sphere and strut diameters
             numNodes = size(obj.vertices,1);
             numStruts = size(obj.struts,1);
             
-            if ~isempty(obj.sphereDiameter)
+            if numel(obj.sphereDiameter)==1
                 obj.sphereDiameter = ones(numNodes,1)*obj.sphereDiameter;
             end
-            obj.strutDiameter = ones(numStruts,1)*obj.strutDiameter;
-        end
-        function obj = load(obj,file)
-            % load a custom beam input file to generate a lattice structure
-            parts = strsplit(file,'.');
-            extension = parts{end};
-            switch extension
-                case obj.validExtensions{1}
-                    % xls
-                    data = xlsread(file);
-                case obj.validExtensions{2}
-                    % csv
-                    data = csvread(file);
-                case obj.validExtensions{3}
-                    % custom
-                    data = csvread(file);
-                otherwise
-                    error('not a suitable load format');
+            if numel(obj.strutDiameter)==1
+                obj.strutDiameter = ones(numStruts,1)*obj.strutDiameter;
             end
-            numNodes=data(1,1);
-            numLinks=data(2,1);
-            % data
-            obj.vertices = data(3:numNodes+2,1:3);
-            obj.struts    = data(numNodes+3:numNodes+numLinks+2,1:2);
-            obj.strutDiameter = data(numNodes+3:numNodes+numLinks+2,3);
-            if size(data,2)==3
-                % no sphere diameter supplied
-                obj.sphereDiameter = zeros(numNodes,1);
-            else
-                % sphere diameter supplied
-                obj.sphereDiameter = data(3:numNodes+2,4);
-            end
-        end
-        function obj = translate(obj,x,y,z)
-            obj.vertices(:,1) = obj.vertices(:,1)+x;
-            obj.vertices(:,2) = obj.vertices(:,2)+y;
-            obj.vertices(:,3) = obj.vertices(:,3)+z;
-        end
+        end % apply a single diam to all struts verts etc not for 3mf or amf
         function obj = cleanLattice(obj)
             % cleans the lattice structure including the removal of
             % duplicate vertices and removes duplicate struts
             
+            % tolerance - get the shortest strut and divide by 1000
+            verts1 = obj.vertices(obj.struts(:,1),:);
+            verts2 = obj.vertices(obj.struts(:,2),:);
+            lengthVerts = sum(sqrt((verts1-verts2).^2),2);
+            obj.tolerance = min(lengthVerts)/15;
             % duplicate vertices
             [obj.vertices,i,indexn]=uniquetol(obj.vertices,obj.tolerance,'ByRows',1,'DataScale',1);
             if ~isempty(obj.sphereDiameter)
@@ -202,39 +144,8 @@ classdef PLG
             test = obj.struts(:,1)==obj.struts(:,2);
             obj.struts(test,:)=[];
             obj.strutDiameter(test)=[];
-        end
-        function obj = rotate(obj,wx,wy,wz)
-            % rotations are in degrees about the main axes
-            thetaX = wx*pi/180;
-            thetaY = wy*pi/180;
-            thetaZ = wz*pi/180;
-            % rotation matricies
-            rx = [1           , 0          ,           0;...
-                0           , cos(thetaX),-sin(thetaX);...
-                0           , sin(thetaX), cos(thetaX)];
-            
-            ry = [cos(thetaY) ,0           , sin(thetaY);...
-                0           ,1           ,0           ;...
-                -sin(thetaY),0           , cos(thetaY)];
-            
-            rz = [cos(thetaZ) ,-sin(thetaZ),           0;...
-                sin(thetaZ) , cos(thetaZ),           0;...
-                0           ,0           ,           1];
-            
-            %rotation x then y then zsplit for debugging
-            numPoints = length(obj.vertices);
-            newPoints = zeros(size(obj.vertices));
-            for inc = 1:numPoints
-                newPoints(inc,:) = obj.vertices(inc,:)*rx';
-            end
-            for inc = 1:numPoints
-                
-            end
-            for inc = 1:numPoints
-                
-            end
-            obj.vertices = newPoints;
-        end
+        end % remove overlapping struts not for 3mf or amf
+        
         function plot(obj,colours)
             % plot the lattice with nodes highlighted
             f = figure;
@@ -270,6 +181,57 @@ classdef PLG
             ylabel('y')
             zlabel('z')
         end
+        
+        function obj = translate(obj,x,y,z)
+            %translates a lattice in space
+            obj.vertices(:,1) = obj.vertices(:,1)+x;
+            obj.vertices(:,2) = obj.vertices(:,2)+y;
+            obj.vertices(:,3) = obj.vertices(:,3)+z;
+        end
+        function obj = rotate(obj,wx,wy,wz)
+            % rotations are in degrees about the main axes
+            thetaX = wx*pi/180;
+            thetaY = wy*pi/180;
+            thetaZ = wz*pi/180;
+            % rotation matricies
+            rx = [1           , 0          ,           0;...
+                0           , cos(thetaX),-sin(thetaX);...
+                0           , sin(thetaX), cos(thetaX)];
+            
+            ry = [cos(thetaY) ,0           , sin(thetaY);...
+                0           ,1           ,0           ;...
+                -sin(thetaY),0           , cos(thetaY)];
+            
+            rz = [cos(thetaZ) ,-sin(thetaZ),           0;...
+                sin(thetaZ) , cos(thetaZ),           0;...
+                0           ,0           ,           1];
+            
+            %rotation x then y then z split for debugging
+            numPoints = length(obj.vertices);
+            newPoints = zeros(size(obj.vertices));
+            for inc = 1:numPoints
+                newPoints(inc,:) = obj.vertices(inc,:)*rx';
+            end
+            for inc = 1:numPoints
+                
+            end
+            for inc = 1:numPoints
+                
+            end
+            obj.vertices = newPoints;
+        end
+        function obj = plus(obj,obj1)
+            % add obj1 to obj2
+            newStruts = obj1.struts+max(obj.struts(:));
+            obj.struts = [obj.struts;newStruts];
+            obj.strutDiameter = [obj.strutDiameter;obj1.strutDiamter];
+            obj.sphereDiameter = [obj.sphereDiameter;obj1.sphereDiameter];
+            obj.vertices = [obj.vertices;obj1.vertices];
+            
+            % remove any matching struts
+            obj = cleanLattice(obj);
+        end
+        
         function obj = splitStruts(obj)
             % takes a badly defined input lattice and scoures it for any struts that intersect and
             % but do not connect to each other. It then breaks these struts and creates a new clean
@@ -338,13 +300,6 @@ classdef PLG
             obj.sphereDiameter = obj.sphereDiameter(1);
             obj = addDiams(obj);
             obj = cleanLattice(obj);
-        end
-        function obj = getTolerance(obj)
-            % get the shortest strut and divide by 1000
-            verts1 = obj.vertices(obj.struts(:,1),:);
-            verts2 = obj.vertices(obj.struts(:,2),:);
-            lengthVerts = sum(sqrt((verts1-verts2).^2),2);
-            obj.tolerance = min(lengthVerts)/15;
         end
         function obj = calcDx(obj)
             % returns the absolute vector length
@@ -463,21 +418,73 @@ classdef PLG
             xlswrite(fileName,{'Repetitions'},'Sheet1','K3');
             xlswrite(fileName,summaryRedun,'Sheet1','J4');
         end
-        function obj = plus(obj,obj1)
-            % add obj1 to obj2
-            newStruts = obj1.struts+max(obj.struts(:));
-            obj.struts = [obj.struts;newStruts];
-            obj.strutDiameter = [obj.strutDiameter;obj1.strutDiamter];
-            obj.sphereDiameter = [obj.sphereDiameter;obj1.sphereDiameter];
-            obj.vertices = [obj.vertices;obj1.vertices];
-            
-            % remove any matching struts
-            obj = cleanLattice(obj);
-        end
         function obj = modResolution(obj,resDia,resBall)
             % allows you to change the resolution
             obj.resolution = resDia;
             obj.sphereResolution = resBall;
+        end
+    end
+    methods (Access=protected)%not called by the user
+        function obj = latticeGenerate(obj)
+            % generates a latticeStructure ready for simulation or saving as an stl etc
+            % all the below unit cells are stored in their own method section
+            switch obj.latticeType
+                case 'bcc' % BCC Cell
+                    [obj.vertices, obj.struts] = PLG.bcc(obj.usx,obj.usy,obj.usz);
+                case 'bcc2' % BCC Cell with no cantilevers
+                    [obj.vertices, obj.struts] = PLG.bcc2(obj.usx,obj.usy,obj.usz);
+                case 'bcz' % BCC Cell
+                    [obj.vertices, obj.struts] = PLG.bcz(obj.usx,obj.usy,obj.usz);
+                case 'fcc'
+                    [obj.vertices, obj.struts] = PLG.fcc(obj.usx,obj.usy,obj.usz);
+                case 'fccNoXY'
+                    [obj.vertices, obj.struts] = PLG.fccNoXY(obj.usx,obj.usy,obj.usz);
+                case 'fbcxyz'
+                    [obj.vertices, obj.struts] = PLG.fbcxyz(obj.usx,obj.usy,obj.usz);
+                case 'fcz'
+                    [obj.vertices, obj.struts] = PLG.fcz(obj.usx,obj.usy,obj.usz);
+                case 'fbcz'
+                    [obj.vertices, obj.struts] = PLG.fbcz(obj.usx,obj.usy,obj.usz);
+                case 'bcc_fcc'
+                    [obj.vertices, obj.struts] = PLG.bccFcc(obj.usx,obj.usy,obj.usz);
+                case 'fbc'
+                    [obj.vertices, obj.struts] = PLG.fbc(obj.usx,obj.usy,obj.usz);
+                case 'box'
+                    [obj.vertices, obj.struts] = PLG.box(obj.usx,obj.usy,obj.usz);
+            end
+            % translsate the unit cell to the correct location
+            obj = translate(obj,obj.orginx,obj.orginy,obj.orginz);
+        end
+        function obj = load(obj,file)
+            % load a custom beam input file to generate a lattice structure
+            parts = strsplit(file,'.');
+            extension = parts{end};
+            switch extension
+                case obj.validExtensions{1}
+                    % xls
+                    data = xlsread(file);
+                case obj.validExtensions{2}
+                    % csv
+                    data = csvread(file);
+                case obj.validExtensions{3}
+                    % custom
+                    data = csvread(file);
+                otherwise
+                    error('not a suitable load format');
+            end
+            numNodes=data(1,1);
+            numLinks=data(2,1);
+            % data
+            obj.vertices = data(3:numNodes+2,1:3);
+            obj.struts    = data(numNodes+3:numNodes+numLinks+2,1:2);
+            obj.strutDiameter = data(numNodes+3:numNodes+numLinks+2,3);
+            if size(data,2)==3
+                % no sphere diameter supplied
+                obj.sphereDiameter = zeros(numNodes,1);
+            else
+                % sphere diameter supplied
+                obj.sphereDiameter = data(3:numNodes+2,4);
+            end
         end
     end
     methods % save out methods
@@ -488,9 +495,6 @@ classdef PLG
             switch filterIndex
                 case 1
                     % stl
-                    obj = cellReplication(obj); % replicate the unit cells generated above
-                    obj = addDiams(obj);        % apply unique diameters to each strut
-                    obj = cleanLattice(obj);    % remove duplicate lattice intersections and struts
                     saveStl(obj,fileName,pathName);
                 case 2
                     % AMF format
@@ -498,22 +502,14 @@ classdef PLG
                     % TODO
                 case 3
                     % ABAQUS
-                    obj = cellReplication(obj); % replicate the unit cells generated above
-                    obj = addDiams(obj);        % apply unique diameters to each strut
-                    obj = cleanLattice(obj);    % remove duplicate lattice intersections and struts
                     saveAbaqus(obj,fileName,pathName)
                 case 4
                     % BINARY
                     % TODO
                 case 5
-                    obj = cellReplication(obj); % replicate the unit cells generated above
-                    obj = addDiams(obj);        % apply unique diameters to each strut
-                    obj = cleanLattice(obj);    % remove duplicate lattice intersections and struts
                     saveExcel(obj,fileName,pathName)
                 case 6
-                    obj = cellReplication(obj); % replicate the unit cells generated above
-                    obj = addDiams(obj);        % apply unique diameters to each strut
-                    obj = cleanLattice(obj);    % remove duplicate lattice intersections and struts
+                    % custom file
                     saveCustom(obj,fileName,pathName)
                 otherwise
                     error('No file saved')
@@ -635,22 +631,53 @@ classdef PLG
             amfNode.setAttribute('unit','millimeter');
             
             %write the geom for a unit cell
-            amfDoc = xmlUnitObj(obj,amfDoc,amfNode,0);
+            amfDoc = amfUnitObj(obj,amfDoc,amfNode,0);
             
             %write the geom for a single ball
-            amfDoc = xmlBallObj(obj,amfDoc,amfNode,1);
+            amfDoc = amfBallObj(obj,amfDoc,amfNode,1);
             
             % replication
-            amfDoc = xmlReplication(obj,amfDoc,amfNode,2);
+            amfDoc = amfReplication(obj,amfDoc,amfNode,0);
             
             xmlwrite(fullName,amfDoc);
-            zip(fullName,fullName);
+            %zip(fullName,fullName);
         end
-        
-        function amfDoc = xmlBallObj(obj,amfDoc,amfNode,idNum)
-            % write out an object to represent a ball and create
-            % constellation points at every vertex
-            % in node must be the amf level node
+        function save3mf(obj,fileName,pathName)
+            % safe a PLG lattice as a 3D manufacturing format file
+            fullName  = [pathName,fileName];
+            %create an object to hold xml
+            threeMfDoc = com.mathworks.xml.XMLUtils.createDocument('model');
+            threeMfNode = threeMfDoc.getDocumentElement;
+            threeMfNode.setAttribute('unit','millimeter');
+            threeMfNode.setAttribute('xml:lang','en-US');
+            
+            resourcesNode = threeMfDoc.createElement('resources');
+            threeMfNode.appendChild(resourcesNode);
+            
+            % write the geom for a lattice unit cell
+            threeMfDoc = threeMfUnitObj(obj,threeMfDoc,resourcesNode,1);
+            
+            %write the geom for a single ball
+            threeMfDoc = threeMfBallObj(obj,threeMfDoc,resourcesNode,2);
+            
+            % will be replaced with replications later
+            buildNode = threeMfDoc.createElement('build');
+            threeMfNode.appendChild(buildNode);
+            
+            itemNode = threeMfDoc.createElement('item');
+            itemNode.setAttribute('objectid','1');
+            buildNode.appendChild(itemNode);
+            
+            itemNode = threeMfDoc.createElement('item');
+            itemNode.setAttribute('objectid','2');
+            buildNode.appendChild(itemNode);
+            
+            xmlwrite('test.xml',threeMfDoc);
+        end
+    end
+    methods % AMF format
+        function amfDoc = amfBallObj(obj,amfDoc,amfNode,idNum)
+            % write out an object to represent a ball
             objNode = amfDoc.createElement('object');
             objNode.setAttribute('id',num2str(idNum));
             amfNode.appendChild(objNode);
@@ -712,7 +739,7 @@ classdef PLG
                 triangleNode.appendChild(v3Node);
             end
         end
-        function amfDoc = xmlUnitObj(obj,amfDoc,amfNode,idNum)
+        function amfDoc = amfUnitObj(obj,amfDoc,amfNode,idNum)
             % write a single unit cell as an object
             radius = obj.strutDiameter/2;
             numLinks = length(obj.struts);
@@ -727,7 +754,7 @@ classdef PLG
             
             verticesNode = amfDoc.createElement('vertices');
             meshNode.appendChild(verticesNode);
-            
+
             verts = cell(numLinks,1);
             struts = cell(numLinks,1);
             for i=1:numLinks
@@ -769,7 +796,7 @@ classdef PLG
                     end1 = circshift(end1,1);
                     end2 = circshift(end2,1);
                     %middle point1 -> end 1
-                    s1(j,:) = [1,end1(1),end1(2)];
+                    s1(j,:) = [1,end1(2),end1(1)];
                     %middle point2 -> end 2
                     s2(j,:) = [obj.resolution+2,end2(1),end2(2)];
                     %end1 -> end2
@@ -840,7 +867,7 @@ classdef PLG
                 triangleNode.appendChild(v3Node);
             end
         end
-        function amfDoc = xmlReplication(obj,amfDoc,amfNode,idNum)
+        function amfDoc = amfReplication(obj,amfDoc,amfNode,idNum)
             % determine locations for the constellation tool for unit cells
             % then ball
             conNode = amfDoc.createElement('constellation');
@@ -908,6 +935,8 @@ classdef PLG
                 instNode.appendChild(dNode);
             end
         end
+    end
+    methods % stl format
         function fid = faceCreate(obj,fid)
             radius = obj.strutDiameter/2;
             numLinks = length(obj.struts);
@@ -1011,6 +1040,175 @@ classdef PLG
                     fwrite(fid,facet_c,'float32');   % Third vertex
                     fwrite(fid,32767,'uint16','l');
                 end
+            end
+        end
+    end
+    methods % 3mf format
+        function threeMfDoc = threeMfBallObj(obj,threeMfDoc,resourcesNode,idNum)
+            % write out an object to represent a ball 
+            objNode = threeMfDoc.createElement('object');
+            objNode.setAttribute('id',num2str(idNum));
+            objNode.setAttribute('type','model');
+            resourcesNode.appendChild(objNode);
+            
+            meshNode = threeMfDoc.createElement('mesh');
+            objNode.appendChild(meshNode);
+            
+            verticesNode = threeMfDoc.createElement('vertices');
+            meshNode.appendChild(verticesNode);
+            
+            % write the vertexs
+            [x,y,z]=sphere(obj.sphereResolution); %create sphere with higher accuracy
+            ball.struts= convhull([x(:), y(:), z(:)]); %create triangle links
+            ball.vertices=[x(:),y(:),z(:)]; %store the points
+            ball.vertices = ball.vertices*obj.strutDiameter/2;
+            for inc = 1:size(ball.vertices,1)
+                vertexNode = threeMfDoc.createElement('vertex');
+              
+                val = sprintf('%3.8f',ball.vertices(inc,1));
+                vertexNode.setAttribute('x',val);
+                
+                val = sprintf('%3.8f',ball.vertices(inc,2));
+                vertexNode.setAttribute('y',val);
+                
+                val = sprintf('%3.8f',ball.vertices(inc,3));
+                vertexNode.setAttribute('z',val);
+                
+                verticesNode.appendChild(vertexNode);
+            end
+            
+            %write the connections
+            triNode = threeMfDoc.createElement('triangles');
+            meshNode.appendChild(triNode);
+            for inc = 1:size(ball.struts,1)
+                triangleNode = threeMfDoc.createElement('triangle');
+                
+                val = sprintf('%0.0f',ball.struts(inc,1)-1);
+                triangleNode.setAttribute('v1',val);
+                
+                val = sprintf('%0.0f',ball.struts(inc,2)-1);
+                triangleNode.setAttribute('v2',val);
+                
+                val = sprintf('%0.0f',ball.struts(inc,3)-1);
+                triangleNode.setAttribute('v3',val);
+                
+                triNode.appendChild(triangleNode);
+            end
+        end
+        function threeMfDoc = threeMfUnitObj(obj,threeMfDoc,resourcesNode,idNum)
+            % write a single unit cell as an object
+            radius = obj.strutDiameter/2;
+            numLinks = length(obj.struts);
+            
+            % setup the object
+            objNode = threeMfDoc.createElement('object');
+            objNode.setAttribute('id',num2str(idNum));
+            objNode.setAttribute('type','model');
+            resourcesNode.appendChild(objNode);
+            
+            meshNode = threeMfDoc.createElement('mesh');
+            objNode.appendChild(meshNode);
+            
+            verticesNode = threeMfDoc.createElement('vertices');
+            meshNode.appendChild(verticesNode);
+            
+
+            verts = cell(numLinks,1);
+            struts = cell(numLinks,1);
+            for i=1:numLinks
+                point1 = obj.vertices(obj.struts(i,1),:);
+                point2 = obj.vertices(obj.struts(i,2),:);
+                vector = point2-point1;
+                u1 = vector/norm(vector);
+                if u1(3)==1 || u1(3)==-1
+                    v1 = [1,0,0];
+                else
+                    v1 = cross([0,0,1],u1);
+                    v1 = v1/norm(v1);
+                end
+                offset = radius*v1;
+                
+                % verts
+                vert1end = zeros(obj.resolution,3);
+                vert2end = zeros(obj.resolution,3);
+                for j=1:obj.resolution
+                    Qrot1 = PLG.qGetRotQuaternion((j-1)*2*pi/obj.resolution, u1);
+                    absolutePointRotation = PLG.qRotatePoint(offset', Qrot1)';
+                    % end 1
+                    vert1end(j,:)=absolutePointRotation+point1;
+                    % end 2
+                    vert2end(j,:)=absolutePointRotation+point2;
+                end
+                verts{i} = [point1;vert1end;point2;vert2end];
+                
+                %struts
+                s1 = zeros(obj.resolution,3);
+                s2 = zeros(obj.resolution,3);
+                s3 = zeros(obj.resolution,3);
+                s4 = zeros(obj.resolution,3);
+                end1 = [1:obj.resolution]+1;
+                end2 = [1:obj.resolution]+obj.resolution+2;
+                end1 = circshift(end1,-1);
+                end2 = circshift(end2,-1);
+                for j=1:obj.resolution
+                    end1 = circshift(end1,1);
+                    end2 = circshift(end2,1);
+                    %middle point1 -> end 1
+                    s1(j,:) = [1,end1(2),end1(1)];
+                    %middle point2 -> end 2
+                    s2(j,:) = [obj.resolution+2,end2(1),end2(2)];
+                    %end1 -> end2
+                    s3(j,:) = [end1(1),end1(2),end2(1)];
+                    %end2 -> end1
+                    s4(j,:) = [end2(2),end2(1),end1(2)];
+                end
+                struts{i} = [s1;s2;s3;s4];
+            end
+            
+            %% join cells
+            strutsOut = [];
+            vertsOut = [];
+            count = 0;
+            for inc = 1:numLinks
+                strutsOut = [strutsOut;struts{i}+count];
+                count = max(strutsOut(:));
+                vertsOut = [vertsOut;verts{inc}];
+            end
+            
+            % make verts unique
+            [vertsOut,i,indexn]=uniquetol(vertsOut,1e-8,'ByRows',1,'DataScale',1);
+            strutsOut = indexn(strutsOut);
+            
+            %% write verts then connections
+            for inc = 1:size(vertsOut,1)
+                vertexNode = threeMfDoc.createElement('vertex');
+              
+                val = sprintf('%3.8f',vertsOut(inc,1));
+                vertexNode.setAttribute('x',val);
+                
+                val = sprintf('%3.8f',vertsOut(inc,2));
+                vertexNode.setAttribute('y',val);
+                
+                val = sprintf('%3.8f',vertsOut(inc,3));
+                vertexNode.setAttribute('z',val);
+                
+                verticesNode.appendChild(vertexNode);
+            end
+            triNode = threeMfDoc.createElement('triangles');
+            meshNode.appendChild(triNode);
+            for inc = 1:size(strutsOut,1)
+                triangleNode = threeMfDoc.createElement('triangle');
+                
+                val = sprintf('%0.0f',strutsOut(inc,1)-1);
+                triangleNode.setAttribute('v1',val);
+                
+                val = sprintf('%0.0f',strutsOut(inc,2)-1);
+                triangleNode.setAttribute('v2',val);
+                
+                val = sprintf('%0.0f',strutsOut(inc,3)-1);
+                triangleNode.setAttribute('v3',val);
+                
+                triNode.appendChild(triangleNode);
             end
         end
     end

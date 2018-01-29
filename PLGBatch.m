@@ -3,9 +3,9 @@ unitCell = {'fcz'};
 resolution = 5;
 strut_dia = 0.8;
 ball_dia = 1*strut_dia ;
-reps_x = 10;
-reps_y = 10;
-reps_z = 12;
+reps_x = 2;
+reps_y = 1;
+reps_z = 2;
 unitSizeX = 10;
 unitSizeY = 10;
 unitSizeZ = 10;
@@ -30,8 +30,11 @@ for unitInc = 1:length(unitCell);
                                             usxInc,usyInc,uszInc,...
                                             repXInc,repYInc,repZInc,...
                                             0,0,0);
+                                        %obj = cellReplication(obj); % replicate the unit cells generated above
+                                        %obj = addDiams(obj);        % apply unique diameters to each strut
+                                        %obj = cleanLattice(obj);    % remove duplicate lattice intersections and struts
                                         %saveCustom(obj,[name,'.custom'],[cd,filesep]);
-                                        saveAmf(obj,[name,'.amf'],[cd,filesep]);
+                                        save3mf(obj,[name,'.amf'],[cd,filesep]);
                                         %getProperties(obj,[name,'.xlsx'])
                                     end
                                 end
