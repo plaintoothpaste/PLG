@@ -1,16 +1,17 @@
-classdef unitCell
-    %UNITCELL Summary of this class goes here
-    %   Detailed explanation goes here
+classdef unitCell<PLG
+    %UNITCELL this class will be a subset of the PLG and will output a unit
+    %cell based on a series of methods
     
     properties
-        Property1
+        vertices
+        connections
+        unitType
     end
     
     methods
-        function obj = unitCell(inputArg1,inputArg2)
-            %UNITCELL Construct an instance of this class
-            %   Detailed explanation goes here
-            obj.Property1 = inputArg1 + inputArg2;
+        function obj = unitCell(unitName,unitType)
+            %UNITCELL Constructs this class as loads a unit cell
+            
         end
         
         function outputArg = method1(obj,inputArg)
@@ -18,6 +19,14 @@ classdef unitCell
             %   Detailed explanation goes here
             outputArg = obj.Property1 + inputArg;
         end
+    end
+    methods (Access=protected)
+        %square unit cells
+        % unit cells are created by joining several base shapes
+        function obj = centreCrossBottom(obj)
+            
+        end
+        
     end
 end
 
