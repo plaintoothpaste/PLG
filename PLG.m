@@ -8,24 +8,24 @@ classdef PLG
     %     4,4,5,0,0,0);
     % save(obj);
     properties (SetAccess=protected)
-        latticeType;
+        unitName;
+        unitType;
+        
         resolution;
-        sphereResolution;
         strutDiameter;
-        % sphereAddition;
+        
+        sphereAddition;
+        sphereResolution;
         sphereDiameter;
+        
         vertices;
         struts;
+        transform; % holds the transform for a specific strut to generate the entire lattice structure
         
-        usx;
-        usy;
-        usz;
-        repsx;
-        repsy;
-        repsz;
-        orginx;
-        orginy;
-        orginz;
+        % 3 value vectors for the x y z params respectivally
+        unitSize
+        replications
+        origin
         
         validExtensions  = {'xlsx'; 'csv'; 'custom'};
         filterSpecOut = {'*.stl','3D geometry file';...
@@ -43,15 +43,14 @@ classdef PLG
             % creates the PLG object
             switch numel(varargin)
                 case 0
-                    % no input no good
-                    error('zero inputs is not an option for the PLG class');
+                    % generate a new lattice
                 case 1
                     % import a custom lattice file containing beam and node
                     % definitions see load function for more information
                     obj = load(obj,varargin{1});
                     obj.strutureType = 0;
                 case 15
-                    %Generate a new regular lattice
+                    %Generate a new regular lattice batch methods (legacy)
                     %   input order same as properties order
                     obj.latticeType = varargin{1};
                     obj.resolution = varargin{2};
@@ -64,18 +63,18 @@ classdef PLG
                         obj.sphereResolution = 2;
                     end
                     
-                    obj.usx = varargin{7};
-                    obj.usy = varargin{8};
-                    obj.usz = varargin{9};
-                    obj.repsx = varargin{10};
-                    obj.repsy = varargin{11};
-                    obj.repsz = varargin{12};
-                    obj.orginx = varargin{13};
-                    obj.orginy = varargin{14};
-                    obj.orginz = varargin{15};
+                    obj.unitSize(1) = varargin{7};
+                    obj.unitSize(2) = varargin{8};
+                    obj.unitSize(3) = varargin{9};
+                    obj.replications(1) = varargin{10};
+                    obj.replications(2) = varargin{11};
+                    obj.replications(3) = varargin{12};
+                    obj.origin(1) = varargin{13};
+                    obj.origin(2) = varargin{14};
+                    obj.origin(3) = varargin{15};
                     
                     % set tolerance as required in clean lattice
-                    obj.tolerance = min([obj.usx,obj.usy,obj.usz])/100;
+                    obj.tolerance = min([obj.unitSize(1),obj.unitSize(2),obj.unitSize(3)])/100;
                     
                     % generate the lattice structure based on inputs
                     obj = latticeGenerate(obj); % generate structure
@@ -84,103 +83,193 @@ classdef PLG
                     error('Incorrect number of inputs');
             end
         end
-        
+        function obj = set(obj,varargin)
+            % set a value in the PLG that can be edited
+            allowable={'resolution','strutDiameter','sphereAddition','sphereResolution','sphereDiameter',...
+                'unitSize','replications','origin'};
+            dataType = {'double','double','logical','double','double','double','double','double'};
+            dataSize = {[1,1],[1,1],[1,1],[1,1],[1,1],[1,3],[1,3],[1,3]};
+            % setup parser
+            p = inputParser();
+            for inc = 1:length(allowable)
+                name = allowable{inc};
+                class = dataType{inc};
+                sizer = dataSize{inc};
+                f = @(x) validateattributes(x,{class},{'size', sizer,'nonempty'});
+                addOptional(p,name,[],f)
+            end
+            parse(p,varargin{:});
+            
+            % apply values
+            for inc = 1:length(allowable)
+                name = allowable{inc};
+                result = p.Results.(name);
+                if ~isempty(result)
+                    obj.(name) = result;
+                end
+            end
+        end
+        function obj = defineUnit(obj,unitNames,type)
+            % define a unit cell and wheter output is radial or cartesian
+            addpath('unitCell');            
+            if ~exist('type','var')
+                type = 'cartesian';
+                warning('Coordinate system not specified using cartesian')
+            end
+            if ~iscell(unitNames)
+                error('unitNames input must be a cell and can contain multiple names')
+            end
+            
+            
+            switch type
+                case 'cartesian'
+                    % for the list of unit cell names generate an object that holds them all
+                    if length(unitNames)>1
+                        unitObj = unitCell(unitNames{1});
+                        for inc = 2:length(unitNames)
+                            unitObj = addUnit(unitObj,unitNames{inc});
+                        end
+                    else
+                        unitObj = unitCell(unitNames{1});
+                    end
+                    unitObj = set(unitObj,'diameter',obj.strutDiameter,'resolution',obj.resolution,'scale',obj.unitSize);
+                    [obj.vertices,obj.struts,obj.transform,obj.unitName,obj.unitType] = output(unitObj);
+                case 'radial'
+                    error('radial/polar coordinate system not yet supported');
+                otherwise
+                    error('coordinate system type not supported');
+                    
+            end
+            rmpath('unitCell');
+        end
+                
         function obj = cellReplication(obj)
-            xPlacement = 0:obj.usx:obj.usx*(obj.repsx-1);
-            yPlacement = 0:obj.usy:obj.usy*(obj.repsy-1);
-            zPlacement = 0:obj.usz:obj.usz*(obj.repsz-1);
+            % if unitType is a beam it will replicate transformation if it is a facet type it will
+            % replicate struts and verts
+            % replaces obj.replications with a list of x,y,z coordinates for the unit cell
+            xPlacement = 0:obj.unitSize(1):obj.unitSize(1)*(obj.replications(1)-1);
+            yPlacement = 0:obj.unitSize(2):obj.unitSize(2)*(obj.replications(2)-1);
+            zPlacement = 0:obj.unitSize(3):obj.unitSize(3)*(obj.replications(3)-1);
             [XX,YY,ZZ] = ndgrid(xPlacement,yPlacement,zPlacement);
             
-            vertOut = arrayfun(@(x,y,z) ...
-                [obj.vertices(:,1) + x,...
-                obj.vertices(:,2) + y,...
-                obj.vertices(:,3) + z]...
-                ,XX,YY,ZZ,'UniformOutput',0);
-            obj.vertices = cell2mat(vertOut(:));
-            
-            strutCounter = 0:(numel(XX)-1);
-            numStruts = max(max(obj.struts));
-            strutCounter = strutCounter*numStruts;
-            strutOut = arrayfun(@(x) obj.struts + x,strutCounter,'UniformOutput',0);
-            obj.struts = cell2mat(strutOut(:));
-        end %apply unit cell replications not for 3mf or amf saveout
-        function obj = addDiams(obj)
-            % add both sphere and strut diameters
-            numNodes = size(obj.vertices,1);
-            numStruts = size(obj.struts,1);
-            
-            if numel(obj.sphereDiameter)==1
-                obj.sphereDiameter = ones(numNodes,1)*obj.sphereDiameter;
+            switch obj.unitType
+                case 'beam'
+                    % replicate transform
+                    originalTransforms = obj.transform;
+                    sizeTransforms = size(originalTransforms);
+                    numReps = length(XX(:));
+                    obj.transform = zeros(numReps*sizeTransforms(1),sizeTransforms(2));
+                    for incReps = 1:numReps
+                        newX = XX(incReps);
+                        newY = YY(incReps);
+                        newZ = ZZ(incReps);
+                        for incTrans = 1:sizeTransforms(1)
+                            currentInc = incTrans + (incReps-1)*sizeTransforms(1);
+                            currentTransform = originalTransforms(incTrans,:);
+                            affine = [currentTransform(1:3),0;currentTransform(4:6),0;currentTransform(7:9),0;currentTransform(10:12),1];
+                            newAffine = zeros(4); newAffine(4,1:3) = [newX,newY,newZ];
+                            newAffine = newAffine+affine;
+                            obj.transform(currentInc,:) = [newAffine(1,1:3),newAffine(2,1:3),newAffine(3,1:3),newAffine(4,1:3)];
+                        end
+                    end
+                case 'facet'
+                    vertOut = arrayfun(@(x,y,z) ...
+                        [obj.vertices(:,1) + x,...
+                        obj.vertices(:,2) + y,...
+                        obj.vertices(:,3) + z]...
+                        ,XX,YY,ZZ,'UniformOutput',0);
+                    obj.vertices = cell2mat(vertOut(:));
+                    
+                    strutCounter = 0:(numel(XX)-1);
+                    numStruts = max(max(obj.struts));
+                    strutCounter = strutCounter*numStruts;
+                    strutOut = arrayfun(@(x) obj.struts + x,strutCounter,'UniformOutput',0);
+                    obj.struts = cell2mat(strutOut(:));
+                otherwise
+                    error('cell replication can not be performed until a unit cell is defined or multiple times');
             end
-            if numel(obj.strutDiameter)==1
-                obj.strutDiameter = ones(numStruts,1)*obj.strutDiameter;
-            end
-        end % apply a single diam to all struts verts etc not for 3mf or amf
+        end
         function obj = cleanLattice(obj)
-            % cleans the lattice structure including the removal of
-            % duplicate vertices and removes duplicate struts
-            
-            % tolerance - get the shortest strut and divide by 1000
-            verts1 = obj.vertices(obj.struts(:,1),:);
-            verts2 = obj.vertices(obj.struts(:,2),:);
-            lengthVerts = sum(sqrt((verts1-verts2).^2),2);
-            obj.tolerance = min(lengthVerts)/15;
-            % duplicate vertices
-            [obj.vertices,i,indexn]=uniquetol(obj.vertices,obj.tolerance,'ByRows',1,'DataScale',1);
-            if ~isempty(obj.sphereDiameter)
-                obj.sphereDiameter = obj.sphereDiameter(i);
+            % cleans the lattice structure including the removal of duplicate transforms or
+            % duplicate vertices and struts depending on type
+            switch obj.unitType
+                case 'beam'
+                    % determine identical transforms and remove can be done with a unique
+                    tester = round(obj.transform,6,'significant');
+                    [~,I] = unique(tester,'rows');
+                    obj.transform = obj.transform(I,:);
+                case 'facet'
+                    % tolerance - get the shortest strut and divide by 1000
+                    verts1 = obj.vertices(obj.struts(:,1),:);
+                    verts2 = obj.vertices(obj.struts(:,2),:);
+                    lengthVerts = sum(sqrt((verts1-verts2).^2),2);
+                    obj.tolerance = min(lengthVerts)/15;
+                    % duplicate vertices
+                    [obj.vertices,i,indexn]=uniquetol(obj.vertices,obj.tolerance,'ByRows',1,'DataScale',1);
+                    if ~isempty(obj.sphereDiameter)
+                        obj.sphereDiameter = obj.sphereDiameter(i);
+                    end
+                    obj.struts = indexn(obj.struts);
+                    
+                    % duplicate struts
+                    tmp = obj.struts;
+                    test = tmp(:,1)>tmp(:,2);
+                    obj.struts(test,1) = tmp(test,2);
+                    obj.struts(test,2) = tmp(test,1);
+                    [obj.struts,i] = unique(obj.struts,'rows');
+                    obj.strutDiameter = obj.strutDiameter(i);
+                    
+                    % duplicate struts zero length
+                    test = obj.struts(:,1)==obj.struts(:,2);
+                    obj.struts(test,:)=[];
+                    obj.strutDiameter(test)=[];
+                otherwise
+                    error('cleaning  can not be performed on this unitType');
             end
-            obj.struts = indexn(obj.struts);
-            
-            % duplicate struts
-            tmp = obj.struts;
-            test = tmp(:,1)>tmp(:,2);
-            obj.struts(test,1) = tmp(test,2);
-            obj.struts(test,2) = tmp(test,1);
-            [obj.struts,i] = unique(obj.struts,'rows');
-            obj.strutDiameter = obj.strutDiameter(i);
-            
-            % duplicate struts zero length
-            test = obj.struts(:,1)==obj.struts(:,2);
-            obj.struts(test,:)=[];
-            obj.strutDiameter(test)=[];
-        end % remove overlapping struts not for 3mf or amf
+        end
         
         function plot(obj,colours)
-            % plot the lattice with nodes highlighted
-            f = figure;
-            f.Units	= 'Normalized';
-            f.Position = [0,0,1,1];
-            f.Name = 'STL plotter';
-            a = axes;
-            a.View = [45,45];
-            axis vis3d
-            a.NextPlot='add';
-            %struts
-            p1 = obj.vertices(obj.struts(:,1),:);
-            p2 = obj.vertices(obj.struts(:,2),:);
-            x = [p1(:,1),p2(:,1)]';
-            y = [p1(:,2),p2(:,2)]';
-            z = [p1(:,3),p2(:,3)]';
-            
-            if exist('colours','var')
-                p = plot3(x,y,z,'Color',[0.3,0.3,0.3,0.5]);
-                for inc = 1:length(p)
-                    p(inc).Color = colours(inc,:);
-                end
-            else
-                plot3(x,y,z,'Color',[0.3,0.3,0.3,0.5]);
+            % plot the lattice with nodes highlighted currently only works for beams
+            switch obj.unitType
+                case 'beam'
+                    f = figure;
+                    f.Units	= 'Normalized';
+                    f.Position = [0,0,1,1];
+                    f.Name = 'STL plotter';
+                    a = axes;
+                    a.View = [45,45];
+                    axis vis3d
+                    a.NextPlot='add';
+                    
+                    numTransforms=size(obj.transform,1);
+                    if ~exist('colours','var')
+                        colours = repmat([0.3,0.3,0.3,0.5],numTransforms,1);
+                    end
+                    zeroPoints = [obj.vertices,[1;1]];
+                    for inc = 1:numTransforms
+                        currentTransform = obj.transform(inc,:);
+                        affine = zeros(4);
+                        affine(4,4) = 1;
+                        affine(1,1:3) = currentTransform(1:3);
+                        affine(2,1:3) = currentTransform(4:6);
+                        affine(3,1:3) = currentTransform(7:9);
+                        affine(4,1:3) = currentTransform(10:12);
+                        
+                        points = zeroPoints*affine;
+                        p = plot3(points(:,1),points(:,2),points(:,3),'Color',colours(inc,:));
+                        p.MarkerFaceColor = [0.9,0.5,0]; p.MarkerEdgeColor = 'none';
+                    end
+                case 'facet'
+                    
+                otherwise
+                    error('Plotting not yet supported for this unitType')
             end
-            % points
-            x = obj.vertices(:,1);
-            y = obj.vertices(:,2);
-            z = obj.vertices(:,3);
-            scatter3(x,y,z,'MarkerFaceColor',[0.9,0.5,0],'MarkerEdgeColor','none');
-            
             xlabel('x')
             ylabel('y')
             zlabel('z')
         end
+        
+        
         
         function obj = translate(obj,x,y,z)
             %translates a lattice in space
@@ -418,11 +507,6 @@ classdef PLG
             xlswrite(fileName,{'Repetitions'},'Sheet1','K3');
             xlswrite(fileName,summaryRedun,'Sheet1','J4');
         end
-        function obj = modResolution(obj,resDia,resBall)
-            % allows you to change the resolution
-            obj.resolution = resDia;
-            obj.sphereResolution = resBall;
-        end
     end
     methods (Access=protected)%not called by the user
         function obj = latticeGenerate(obj)
@@ -430,30 +514,30 @@ classdef PLG
             % all the below unit cells are stored in their own method section
             switch obj.latticeType
                 case 'bcc' % BCC Cell
-                    [obj.vertices, obj.struts] = PLG.bcc(obj.usx,obj.usy,obj.usz);
+                    [obj.vertices, obj.struts] = PLG.bcc(obj.unitSize(1),obj.unitSize(2),obj.unitSize(3));
                 case 'bcc2' % BCC Cell with no cantilevers
-                    [obj.vertices, obj.struts] = PLG.bcc2(obj.usx,obj.usy,obj.usz);
+                    [obj.vertices, obj.struts] = PLG.bcc2(obj.unitSize(1),obj.unitSize(2),obj.unitSize(3));
                 case 'bcz' % BCC Cell
-                    [obj.vertices, obj.struts] = PLG.bcz(obj.usx,obj.usy,obj.usz);
+                    [obj.vertices, obj.struts] = PLG.bcz(obj.unitSize(1),obj.unitSize(2),obj.unitSize(3));
                 case 'fcc'
-                    [obj.vertices, obj.struts] = PLG.fcc(obj.usx,obj.usy,obj.usz);
+                    [obj.vertices, obj.struts] = PLG.fcc(obj.unitSize(1),obj.unitSize(2),obj.unitSize(3));
                 case 'fccNoXY'
-                    [obj.vertices, obj.struts] = PLG.fccNoXY(obj.usx,obj.usy,obj.usz);
+                    [obj.vertices, obj.struts] = PLG.fccNoXY(obj.unitSize(1),obj.unitSize(2),obj.unitSize(3));
                 case 'fbcxyz'
-                    [obj.vertices, obj.struts] = PLG.fbcxyz(obj.usx,obj.usy,obj.usz);
+                    [obj.vertices, obj.struts] = PLG.fbcxyz(obj.unitSize(1),obj.unitSize(2),obj.unitSize(3));
                 case 'fcz'
-                    [obj.vertices, obj.struts] = PLG.fcz(obj.usx,obj.usy,obj.usz);
+                    [obj.vertices, obj.struts] = PLG.fcz(obj.unitSize(1),obj.unitSize(2),obj.unitSize(3));
                 case 'fbcz'
-                    [obj.vertices, obj.struts] = PLG.fbcz(obj.usx,obj.usy,obj.usz);
+                    [obj.vertices, obj.struts] = PLG.fbcz(obj.unitSize(1),obj.unitSize(2),obj.unitSize(3));
                 case 'bcc_fcc'
-                    [obj.vertices, obj.struts] = PLG.bccFcc(obj.usx,obj.usy,obj.usz);
+                    [obj.vertices, obj.struts] = PLG.bccFcc(obj.unitSize(1),obj.unitSize(2),obj.unitSize(3));
                 case 'fbc'
-                    [obj.vertices, obj.struts] = PLG.fbc(obj.usx,obj.usy,obj.usz);
+                    [obj.vertices, obj.struts] = PLG.fbc(obj.unitSize(1),obj.unitSize(2),obj.unitSize(3));
                 case 'box'
-                    [obj.vertices, obj.struts] = PLG.box(obj.usx,obj.usy,obj.usz);
+                    [obj.vertices, obj.struts] = PLG.box(obj.unitSize(1),obj.unitSize(2),obj.unitSize(3));
             end
             % translsate the unit cell to the correct location
-            obj = translate(obj,obj.orginx,obj.orginy,obj.orginz);
+            obj = translate(obj,obj.origin(1),obj.origin(2),obj.origin(3));
         end
         function obj = load(obj,file)
             % load a custom beam input file to generate a lattice structure
@@ -492,31 +576,31 @@ classdef PLG
             % this overloads the save function and allows saving out in various
             % formats however this only saves the latticeStructure structure
             [fileName,pathName,filterIndex] = uiputfile(obj.filterSpecOut);
+            file = [pathName,fileName];
             switch filterIndex
                 case 1
                     % stl
-                    saveStl(obj,fileName,pathName);
+                    saveStl(obj,file);
                 case 2
                     % AMF format
-                    saveAmf(obj,fileName,pathName);
+                    saveAmf(obj,file);
                     % TODO
                 case 3
                     % ABAQUS
-                    saveAbaqus(obj,fileName,pathName)
+                    saveAbaqus(obj,file);
                 case 4
-                    % BINARY
-                    % TODO
+                    % 3mf format
+                    save3mf(obj,file)
                 case 5
-                    saveExcel(obj,fileName,pathName)
+                    saveExcel(obj,file);
                 case 6
                     % custom file
-                    saveCustom(obj,fileName,pathName)
+                    saveCustom(obj,file)
                 otherwise
                     error('No file saved')
             end
         end
-        function saveStl(obj,fileName,pathName)
-            fullName  = [pathName,fileName];
+        function saveStl(obj,fullName)
             numFacets = obj.resolution*4;%number of facets created for one strut
             numLinks = size(obj.struts,1);
             numVertices = size(obj.vertices,1);
@@ -536,10 +620,9 @@ classdef PLG
             fid = faceCreate(obj,fid);
             fclose(fid);
         end
-        function saveAbaqus(obj,fileName,pathName)
+        function saveAbaqus(obj,fullName)
             % saves out as a abaqus beam model that is used as an input
             % file
-            fullName = [pathName,fileName];
             fid = fopen(fullName,'w');
             
             % Write the header
@@ -548,7 +631,7 @@ classdef PLG
             fprintf(fid,'** Generated by: Programatic Lattice generator\n');
             fprintf(fid,'*Preprint, echo=NO, model=NO, history=NO, contact=NO\n');
             fprintf(fid,'** PARTS\n');
-            fprintf(fid,'*Part, name=Lattice_%s_%dx%dx%d\n',obj.latticeType,obj.usx,obj.usy,obj.usz);
+            fprintf(fid,'*Part, name=Lattice_%s_%dx%dx%d\n',obj.latticeType,obj.unitSize(1),obj.unitSize(2),obj.unitSize(3));
             
             % write the nodes
             fprintf(fid,'*Node\n');
@@ -571,10 +654,8 @@ classdef PLG
             
             fclose(fid);
         end
-        function saveExcel(obj,fileName,pathName)
+        function saveExcel(obj,fullName)
             % saves data to an excel compatible format
-            fullName = [pathName,fileName];
-            
             numNodes=size(obj.vertices,1);
             numLinks=size(obj.struts,1);
             xlswrite(fullName,numNodes,'Sheet1','A1');
@@ -608,10 +689,8 @@ classdef PLG
                 xlswrite(fullName,data,'Sheet1',locationDiameters);
             end
         end
-        function saveCustom(obj,fileName,pathName)
+        function saveCustom(obj,fullName)
             % saves data to an excel compatible format
-            fullName = [pathName,fileName];
-            
             numNodes=size(obj.vertices,1);
             numLinks=size(obj.struts,1);
             
@@ -623,8 +702,7 @@ classdef PLG
             data = [obj.struts,obj.strutDiameter];
             dlmwrite(fullName,data,'-append');
         end
-        function saveAmf(obj,fileName,pathName)
-            fullName  = [pathName,fileName];
+        function saveAmf(obj,fullName)
             % create object to hold the xml data 
             amfDoc = com.mathworks.xml.XMLUtils.createDocument('amf');
             amfNode = amfDoc.getDocumentElement;
@@ -642,9 +720,12 @@ classdef PLG
             xmlwrite(fullName,amfDoc);
             %zip(fullName,fullName);
         end
-        function save3mf(obj,fileName,pathName)
+        function save3mf(obj,fullName)
             % safe a PLG lattice as a 3D manufacturing format file
-            fullName  = [pathName,fileName];
+            if ~strcmp(obj.unitType, 'beam')
+                error('only beam unit type can be saved as a 3mf file please use stl or convert to beam');
+            end
+            
             %create an object to hold xml
             threeMfDoc = com.mathworks.xml.XMLUtils.createDocument('model');
             threeMfNode = threeMfDoc.getDocumentElement;
@@ -654,25 +735,31 @@ classdef PLG
             resourcesNode = threeMfDoc.createElement('resources');
             threeMfNode.appendChild(resourcesNode);
             
-            % write the geom for a lattice unit cell
-            threeMfDoc = threeMfUnitObj(obj,threeMfDoc,resourcesNode,1);
+            % write the geom for a single strut and ball (if required)
+            threeMfDoc = threeMfUnitObj(obj,threeMfDoc,resourcesNode,0);
+            if obj.sphereAddition
+                threeMfDoc = threeMfBallObj(obj,threeMfDoc,resourcesNode,1);
+            end
+            
+            threeMfDoc = threeMfreplicate(obj,threeMfDoc,threeMfNode,0,1);
+            
             
             %write the geom for a single ball
-            threeMfDoc = threeMfBallObj(obj,threeMfDoc,resourcesNode,2);
             
-            % will be replaced with replications later
-            buildNode = threeMfDoc.createElement('build');
-            threeMfNode.appendChild(buildNode);
             
-            itemNode = threeMfDoc.createElement('item');
-            itemNode.setAttribute('objectid','1');
-            buildNode.appendChild(itemNode);
+            % gather the other data that is required to make a 3mf file
+            mkdir('_rels');
+            mkdir('3D');
+            xmlwrite(['3D',filesep,'3dmodel.model'],threeMfDoc);
+            copyfile('other/.rels','_rels/.rels');
+            copyfile('other/[Content_Types].xml','[Content_Types].xml');
+            zip(fullName,{'_rels','3D','[Content_Types].xml'});
+            movefile([fullName,'.zip'],[fullName,'.3mf'])
             
-            itemNode = threeMfDoc.createElement('item');
-            itemNode.setAttribute('objectid','2');
-            buildNode.appendChild(itemNode);
-            
-            xmlwrite('test.xml',threeMfDoc);
+            % delete the unzipped files
+            delete('[Content_Types].xml');
+            rmdir('3D','s');
+            rmdir('_rels','s');
         end
     end
     methods % AMF format
@@ -874,12 +961,12 @@ classdef PLG
             conNode.setAttribute('id',num2str(idNum));
             amfNode.appendChild(conNode);
             
-            for incX = 1:obj.repsx
-                posX = (incX-1)*obj.usx;
-                for incY = 1:obj.repsy
-                    posY = (incY-1)*obj.usy;
-                    for incZ = 1:obj.repsz
-                        posZ = (incZ-1)*obj.usz;
+            for incX = 1:obj.replications(1)
+                posX = (incX-1)*obj.unitSize(1);
+                for incY = 1:obj.replications(2)
+                    posY = (incY-1)*obj.unitSize(2);
+                    for incZ = 1:obj.replications(3)
+                        posZ = (incZ-1)*obj.unitSize(3);
                         
                         instNode = amfDoc.createElement('instance');
                         instNode.setAttribute('objectid','0');
@@ -1061,7 +1148,7 @@ classdef PLG
             [x,y,z]=sphere(obj.sphereResolution); %create sphere with higher accuracy
             ball.struts= convhull([x(:), y(:), z(:)]); %create triangle links
             ball.vertices=[x(:),y(:),z(:)]; %store the points
-            ball.vertices = ball.vertices*obj.strutDiameter/2;
+            ball.vertices = ball.vertices*obj.sphereDiameter/2;
             for inc = 1:size(ball.vertices,1)
                 vertexNode = threeMfDoc.createElement('vertex');
               
@@ -1098,7 +1185,7 @@ classdef PLG
         function threeMfDoc = threeMfUnitObj(obj,threeMfDoc,resourcesNode,idNum)
             % write a single unit cell as an object
             radius = obj.strutDiameter/2;
-            numLinks = length(obj.struts);
+            numLinks = size(obj.struts,1);
             
             % setup the object
             objNode = threeMfDoc.createElement('object');
@@ -1121,11 +1208,14 @@ classdef PLG
                 vector = point2-point1;
                 u1 = vector/norm(vector);
                 if u1(3)==1 || u1(3)==-1
-                    v1 = [1,0,0];
+                    crosser = [0,1,0];
+                    
                 else
-                    v1 = cross([0,0,1],u1);
-                    v1 = v1/norm(v1);
+                    crosser = [1,0,1];
                 end
+                
+                v1 = cross(crosser,u1);
+                v1 = v1/norm(v1);
                 offset = radius*v1;
                 
                 % verts
@@ -1148,11 +1238,11 @@ classdef PLG
                 s4 = zeros(obj.resolution,3);
                 end1 = [1:obj.resolution]+1;
                 end2 = [1:obj.resolution]+obj.resolution+2;
-                end1 = circshift(end1,-1);
-                end2 = circshift(end2,-1);
+                end1 = circshift(end1,-1,2);
+                end2 = circshift(end2,-1,2);
                 for j=1:obj.resolution
-                    end1 = circshift(end1,1);
-                    end2 = circshift(end2,1);
+                    end1 = circshift(end1,1,2);
+                    end2 = circshift(end2,1,2);
                     %middle point1 -> end 1
                     s1(j,:) = [1,end1(2),end1(1)];
                     %middle point2 -> end 2
@@ -1211,219 +1301,51 @@ classdef PLG
                 triNode.appendChild(triangleNode);
             end
         end
-    end
-    methods (Static) %cell type methods
-        function [nodes, struts]= bcc(sx, sy, sz)
-            nodes=[0 , 0, 0;...
-                sx, 0, 0;...
-                sx,sy, 0;...
-                0 ,sy, 0;...
-                0 , 0,sz;...
-                sx, 0,sz;...
-                sx,sy,sz;...
-                0 ,sy,sz;...
-                sx/2,sy/2,sz/2];
-            struts=[1,9;2,9;3,9;4,9;5,9;6,9;7,9;8,9];
-        end
-        function [nodes, struts]= bcz(sx, sy, sz)
-            nodes=[0 , 0, 0;...  1
-                sx, 0, 0;...  2
-                sx,sy, 0;...  3
-                0 ,sy, 0;...  4
-                0 , 0,sz;...  5
-                sx,0,sz;...           6
-                sx,sy,sz;...        7
-                0,sy,sz;...           8
-                sx/2,sy/2,sz/2];  % 9
-            struts=[1,9;...
-                1,5;...
-                2,9;...
-                2,6;...
-                3,9;...
-                3,7;...
-                4,9;...
-                4,8;...
-                5,9;...
-                6,9;...
-                7,9;....
-                8,9];
-        end
-        function [nodes, struts]= bcc2(sx, sy, sz)
-            nodes=[0,sy/2,sz/2;...
-                sx,sy/2,sz/2;...
-                sx/2,0,0;...
-                sx/2,0,sz;...
-                sx/2,sy,sz;...
-                sx/2,sy,0];
-            struts=[3,1;...
-                4,1;...
-                5,1;...
-                6,1;...
-                2,3;...
-                2,4;...
-                2,5;...
-                2,6];
-        end
-        function [nodes, struts]= fcc(sx, sy, sz)
-            nodes=[0,0,0;...               1  0
-                sx,0,0;...                 2  0
-                sx,sy,0;...              3  0
-                0,sy,0;...                 4  0
-                0,0,sz;...                 5  1
-                sx,0,sz;...              6  1
-                sx,sy,sz;...           7  1
-                0,sy,sz;...              8  1
-                sx/2,sy/2,0;...          9  0
-                sx/2,sy/2,sz;...       10 1
-                sx/2,0,sz/2;...          11 2
-                sx/2,sy,sz/2;...       12 2
-                0,sy/2,sz/2;...          13 2
-                sx,sy/2,sz/2]; %       14 2
-            struts=[1,13;...
-                1,9;...
-                1,11;...
-                2,9;...
-                2,14;...
-                2,11;...
-                3,12;...
-                3,14;...
-                3,9;...
-                4,12;...
-                4,9;...
-                4,13;...
-                5,13;...
-                5,11;...
-                5,10;...
-                6,10;...
-                6,14;...
-                6,11;...
-                7,10;...
-                7,14;...
-                7,12;...
-                8,12;...
-                8,13;...
-                8,10];
-        end
-        function [nodes, struts]= fccNoXY(sx, sy, sz)
-            nodes=[0,0,0;...             1  0
-                sx,0,0;...                 2  0
-                sx,sy,0;...              3  0
-                0,sy,0;...                 4  0
-                0,0,sz;...                 5  1
-                sx,0,sz;...              6  1
-                sx,sy,sz;...           7  1
-                0,sy,sz;...              8  1
-                sx/2,0,sz/2;...          9  2
-                sx/2,sy,sz/2;...       10 2
-                0,sy/2,sz/2;...          11 2
-                sx,sy/2,sz/2]; %       12 2
-            struts=[1,11;...
-                1,9;...
-                2,12;...
-                2,9;...
-                3,10;...
-                3,12;...
-                4,10;...
-                4,11;...
-                5,11;...
-                5,9;...
-                6,12;...
-                6,9;...
-                7,12;...
-                7,10;...
-                8,10;...
-                8,11];
-        end
-        function [nodes, struts]= fcz(sx, sy, sz)
-            nodes=[0,0,0;...
-                sx,0,0;...
-                sx,sy,0;...
-                0,sy,0;...
-                0,0,sz;...
-                sx,0,sz;...
-                sx,sy,sz;...
-                0,sy,sz;...
-                sx/2,0,sz/2;...
-                sx,sy/2,sz/2;...
-                sx/2,sy,sz/2;...
-                0,sy/2,sz/2];
-            struts=[1,5;1,9;1,12;2,9;2,6;2,10;3,10;3,11;3,7;4,11;4,12;4,8;5,9;5,12;6,9;6,10;7,11;7,10;8,11;8,12];
-        end
-        function [nodes, struts]= box(sx, sy, sz)
-            nodes=[0,0,0;... 1
-                sx,0,0;... 2
-                sx,sy,0;... 3
-                0,sy,0;... 4
-                0,0,sz;... 5
-                sx,0,sz;... 6
-                sx,sy,sz;... 7
-                0,sy,sz]; % 8
-            struts=[1,2;...
-                2,3;...
-                1,4;...
-                3,4;...
-                1,5;...
-                5,6;...
-                5,8;...
-                6,7;...
-                7,8;...
-                2,6;...
-                3,7;...
-                4,8];
-        end
-        function [nodes, struts]= bccFcc(sx, sy, sz)
-            nodes=[0,0,0;...
-                (sx),0,0;...
-                sx,sy,0;...
-                0,sy,0;0,0,sz;...
-                sx,0,sz;...
-                sx,sy,sz;...
-                0,sy,sz;...
-                sx/2,sy/2,sz/2;...
-                sx/2,sy/2,0;...
-                sx/2,sy/2,sz;...
-                sx/2,0,sz/2;...
-                sx/2,sy,sz/2;...
-                0,sy/2,osz/2;...
-                sx,sy/2,sz/2];
-        end
-        function [nodes, struts]= fbc(sx, sy, sz)
-            nodes=[0,0,0;...
-                sx,0,0;...
-                0,sy,0;...
-                sx,sy,0;...
-                0,0,sz;...
-                sx,0,sz;...
-                0,sy,sz;...
-                sx,sy,sz];
-            struts=[2,8;4,6;1,7;3,5;1,6;2,5;4,7;3,8;... struts
-                1,8;2,7;4,5;3,6]; %body
-        end
-        function [nodes, struts]= fbcxyz(sx, sy, sz)
-            nodes=[0,0,0;...
-                sx,0,0;...
-                0,sy,0;...
-                sx,sy,0 ;...
-                0,0,sz;...
-                sx,0 ,sz;...
-                0,sy,sz;...
-                sx,sy,sz];
-            struts=[1,2;1,3;4,3;4,2;2,6;6,8;8,4;1,5;5,7;7,3;5,6;7,8;... edges
-                1,4;2,3;2,8;4,6;1,7;3,5;1,6;2,5;4,7;3,8;7,6;5,8;... struts
-                1,8;2,7;4,5;3,6]; %body
-        end
-        function [nodes, struts]= fbcz(sx, sy, sz)
-            nodes=[0,0,0;...
-                sx,0,0;...
-                0,sy,0;...
-                sx,sy,0;...
-                0,0,sz;...
-                sx,0,sz;...
-                0,sy,sz;...
-                sx,sy,sz];
-            struts=[2,6;8,4;1,5;7,3;... edges
-                2,8;4,6;1,7;3,5;1,6;2,5;4,7;3,8;... struts
-                1,8;2,7;4,5;3,6]; %body
+        
+        function threeMfDoc = threeMfreplicate(obj,threeMfDoc,threeMfNode,idUnit,idBall)
+            % for every transform write it to the file
+            % build item holds all replications
+            buildNode = threeMfDoc.createElement('build');
+            threeMfNode.appendChild(buildNode);
+            
+            numTransform = size(obj.transform,1);
+            for inc = 1:numTransform
+                itemNode = threeMfDoc.createElement('item');
+                itemNode.setAttribute('objectid',num2str(idUnit));
+                
+                currentTransform = obj.transform(inc,:);
+                str = sprintf('%5.5f ',currentTransform);
+                str(end) = [];
+                itemNode.setAttribute('transform',str);
+                buildNode.appendChild(itemNode);
+            end
+            
+            if ~obj.sphereAddition
+                return
+            end
+            % write the ball locations if required
+            numTransform =size(obj.transform,1);
+            verts = [];
+            points = [obj.vertices,[1;1]];
+            for inc = 1:numTransform
+                currentTransform = obj.transform(inc,:);
+                trans = eye(4);
+                trans(1,1:3) = currentTransform(1:3);
+                trans(2,1:3) = currentTransform(4:6);
+                trans(3,1:3) = currentTransform(7:9);
+                trans(4,1:3) = currentTransform(10:12);
+                newVerts = points*trans;
+                verts = [verts;newVerts(:,1:3)];
+            end
+            verts = unique(verts,'rows');
+            for inc = 1:size(verts,1)
+                itemNode = threeMfDoc.createElement('item');
+                itemNode.setAttribute('objectid',num2str(idBall));
+                
+                str = sprintf('1 0 0 0 1 0 0 0 1 %5.5f %5.5f %5.5f', verts(inc,1), verts(inc,2),verts(inc,3));
+                itemNode.setAttribute('transform',str);
+                buildNode.appendChild(itemNode);
+            end
         end
     end
     methods (Static) % quaternian methods
@@ -1649,7 +1571,7 @@ classdef PLG
             isIn = lowRange(2) >= highRange(1);
             
         end
-        function [distance fromP1 coord1 coord2] = distBetween2Segment(p0, p1, q0, q1)
+        function [distance, fromP1, coord1, coord2] = distBetween2Segment(p0, p1, q0, q1)
             % code from: https://au.mathworks.com/matlabcentral/fileexchange/32487-shortest-distance-between-two-line-segments?focused=3821416&tab=function
             u = p0 - p1;
             v = q0 - q1;

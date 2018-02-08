@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mesh>
+   <vertices>
+     <vertex x="-0.5" y="-0.5" z="-0.5"/>
+     <vertex x="-0.5" y="-0.5" z="0.5"/>
+     <vertex x="0.5" y="-0.5" z="0.5"/>
+     <vertex x="0.5" y="-0.5" z="-0.5"/>
+     <vertex x="0.5" y="0.5" z="-0.5"/>
+     <vertex x="0.5" y="0.5" z="0.5"/>
+     <vertex x="-0.5" y="0.5" z="0.5"/>
+     <vertex x="-0.5" y="0.5" z="-0.5"/>
+     <vertex x="0" y="0" z="0"/>
+     <vertex x="-0.5" y="-0.5" z="0"/>
+     <vertex x="0" y="-0.5" z="0.5"/>
+     <vertex x="0.5" y="-0.5" z="0"/>
+     <vertex x="0" y="-0.5" z="-0.5"/>
+     <vertex x="0" y="-0.5" z="0"/>
+     <vertex x="-0.5" y="0.5" z="0"/>
+     <vertex x="-0.5" y="0" z="0.5"/>
+     <vertex x="-0.5" y="0" z="-0.5"/>
+     <vertex x="-0.5" y="0" z="0"/>
+     <vertex x="0.5" y="0.5" z="0"/>
+     <vertex x="0" y="0.5" z="0.5"/>
+     <vertex x="0" y="0.5" z="-0.5"/>
+     <vertex x="0" y="0.5" z="0"/>
+     <vertex x="0.5" y="0" z="0.5"/>
+     <vertex x="0.5" y="0" z="-0.5"/>
+     <vertex x="0.5" y="0" z="0"/>
+     <vertex x="0" y="0" z="-0.5"/>
+     <vertex x="0" y="0" z="0.5"/>
+   </vertices>
+   <struts name="horizontalFaceCross" type="beam">
+     <strut v1="1" v2="26"/>
+     <strut v1="4" v2="26"/>
+     <strut v1="5" v2="26"/>
+     <strut v1="8" v2="26"/>
+     <strut v1="2" v2="27"/>
+     <strut v1="3" v2="27"/>
+     <strut v1="6" v2="27"/>
+     <strut v1="7" v2="27"/>
+   </struts>
+ </mesh>

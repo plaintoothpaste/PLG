@@ -9,7 +9,6 @@
      <vertex x="0.5" y="0.5" z="0.5"/>
      <vertex x="-0.5" y="0.5" z="0.5"/>
      <vertex x="-0.5" y="0.5" z="-0.5"/>
-     <vertex x="-0.5" y="0.5" z="-0.5"/>
      <vertex x="0" y="0" z="0"/>
      <vertex x="-0.5" y="-0.5" z="0"/>
      <vertex x="0" y="-0.5" z="0.5"/>
@@ -28,50 +27,14 @@
      <vertex x="0.5" y="0" z="-0.5"/>
      <vertex x="0.5" y="0" z="0"/>
      <vertex x="0" y="0" z="-0.5"/>
-     <vertex x="0.5" y="0" z="0.5"/>
+     <vertex x="0" y="0" z="0.5"/>
    </vertices>
    <struts name="centreCross" type="beam">
      <strut v1="9" v2="14"/>
      <strut v1="9" v2="18"/>
-     <strut v1="9" v2="22"/>
-     <strut v1="9" v2="25"/>
+     <strut v1="22" v2="9"/>
+     <strut v1="25" v2="9"/>
      <strut v1="9" v2="26"/>
-     <strut v1="9" v2="27"/>
-   </struts>
-   <struts name="bcc">
-     <strut v1="1" v2="9"/>
-     <strut v1="2" v2="9"/>
-     <strut v1="3" v2="9"/>
-     <strut v1="4" v2="9"/>
-     <strut v1="5" v2="9"/>
-     <strut v1="6" v2="9"/>
-     <strut v1="7" v2="9"/>
-     <strut v1="8" v2="9"/>
-   </struts>
-   <struts name="verticalRods">
-     <strut v1="1" v2="2"/>
-     <strut v1="4" v2="3"/>
-     <strut v1="5" v2="6"/>
-     <strut v1="8" v2="7"/>
-   </struts>
-   <struts name="horizontalRods">
-     <strut v1="1" v2="8"/>
-     <strut v1="4" v2="5"/>
-     <strut v1="2" v2="7"/>
-     <strut v1="3" v2="6"/>
-   </struts>
-   <struts name="verticalFaceCross">
-     <strut v1="1" v2="14"/>
-     <strut v1="2" v2="14"/>
-     <strut v1="3" v2="14"/>
-     <strut v1="4" v2="14"/>
-     <strut v1="1" v2="18"/>
-     <strut v1="2" v2="18"/>
-     <strut v1="7" v2="18"/>
-     <strut v1="8" v2="18"/>
-     <strut v1="5" v2="22"/>
-     <strut v1="6" v2="22"/>
-     <strut v1="7" v2="22"/>
-     <strut v1="8" v2="22"/>
+     <strut v1="27" v2="9"/>
    </struts>
  </mesh>
