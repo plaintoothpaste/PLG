@@ -62,7 +62,7 @@ classdef unitCell
         function [vertices,connections,transform,name,type] = output(obj)
             % if the model is a beam model then a single strut [0,0,-0.5]->[0,0,0.5] 
             % with its repspective affine transform will be supplied.
-            if isempty(obj.diameter)
+            if isempty(obj.diameter) || isempty(obj.resolution) || isempty(obj.scale)
                 error('diameter and resolution must be supplied');
             end
             
@@ -83,28 +83,24 @@ classdef unitCell
                         point1 = obj.vertices(obj.connections(inc,1),:);
                         point2 = obj.vertices(obj.connections(inc,2),:);
                         vector = point2-point1;
-                        u1 = vector/norm(vector);
-                        if u1(1)==1 || u1(1)==-1
-                            crosser1 = [0,1,0];
-                            crosser2 = [0,0,1];
-                        elseif u1(2)==1 || u1(2)==-1
-                            crosser1 = [0,0,1];
-                            crosser2 = [1,0,0];
+                        u = vector/norm(vector);
+                        if abs(u(3))==1 
+                            crosser = [1,0,0];
                         else % perfect z or any other vector
-                            crosser1 = [1,0,0];
-                            crosser2 = [0,1,0];
+                            crosser = [0,0,1];
                         end
-                        v1 = cross(crosser1,u1);
-                        v1 = v1/norm(v1);
-                        offset = obj.diameter/2*v1;
+                        v = cross(crosser,u);
+                        v = v/norm(v);
+                        offset = obj.diameter/2*v;
                         point3 = point1+offset;
-                            
-                        vector = point1-point2;
-                        u1 = vector/norm(vector);
-                        v1 = cross(crosser2,u1);
-                        v1 = v1/norm(v1);
-                        offset = obj.diameter/2*v1;
-                        point4 = point2+offset;
+                        
+                        vector = point3-point1;
+                        w = vector/norm(vector);
+                        x = cross(w,u);
+                        x = x/norm(x);
+                        offset = obj.diameter/2*x;
+                        point4 = point2-offset;
+                        
                         newPoints = [point1,1;point2,1;point3,1;point4,1;];
                         
                         affine = originalPoints\newPoints;
@@ -113,6 +109,7 @@ classdef unitCell
                     end
                 case 'facet'
                     transform = [];
+                    error('TODO');
             end
                 
         end  

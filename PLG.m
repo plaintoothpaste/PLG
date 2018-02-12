@@ -44,6 +44,7 @@ classdef PLG
             switch numel(varargin)
                 case 0
                     % generate a new lattice
+                    obj.sphereAddition = false;
                 case 1
                     % import a custom lattice file containing beam and node
                     % definitions see load function for more information
@@ -111,7 +112,7 @@ classdef PLG
         end
         function obj = defineUnit(obj,unitNames,type)
             % define a unit cell and wheter output is radial or cartesian
-            addpath('unitCell');            
+            addpath('unitCell');
             if ~exist('type','var')
                 type = 'cartesian';
                 warning('Coordinate system not specified using cartesian')
@@ -228,6 +229,13 @@ classdef PLG
             end
         end
         
+        function obj = custom2beam(obj)
+            % changes a custom imported lattice file to a series of
+            % transforms this enables 3mf and amf save out as well as more
+            % efficient storage.
+            
+            error('TODO');
+        end
         function plot(obj,colours)
             % plot the lattice with nodes highlighted currently only works for beams
             switch obj.unitType
@@ -268,8 +276,6 @@ classdef PLG
             ylabel('y')
             zlabel('z')
         end
-        
-        
         
         function obj = translate(obj,x,y,z)
             %translates a lattice in space
@@ -740,21 +746,17 @@ classdef PLG
             if obj.sphereAddition
                 threeMfDoc = threeMfBallObj(obj,threeMfDoc,resourcesNode,1);
             end
-            
+            %write the replications of the above data
             threeMfDoc = threeMfreplicate(obj,threeMfDoc,threeMfNode,0,1);
             
-            
-            %write the geom for a single ball
-            
-            
-            % gather the other data that is required to make a 3mf file
+            % gather the other supplementary files that are required to make a 3mf file
             mkdir('_rels');
             mkdir('3D');
             xmlwrite(['3D',filesep,'3dmodel.model'],threeMfDoc);
             copyfile('other/.rels','_rels/.rels');
             copyfile('other/[Content_Types].xml','[Content_Types].xml');
-            zip(fullName,{'_rels','3D','[Content_Types].xml'});
-            movefile([fullName,'.zip'],[fullName,'.3mf'])
+            zip('out',{'_rels','3D','[Content_Types].xml'});
+            movefile('out.zip',[fullName,'.3mf'],'f');
             
             % delete the unzipped files
             delete('[Content_Types].xml');
@@ -1301,7 +1303,6 @@ classdef PLG
                 triNode.appendChild(triangleNode);
             end
         end
-        
         function threeMfDoc = threeMfreplicate(obj,threeMfDoc,threeMfNode,idUnit,idBall)
             % for every transform write it to the file
             % build item holds all replications
