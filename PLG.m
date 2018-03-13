@@ -9,7 +9,13 @@ classdef PLG
     % save(obj);
     properties (SetAccess=protected)
         unitName;
-        unitType;
+        unitType; % beam - transform storage of single beam 3mf compatible
+                  % facet - all facets can save out as stl or 3mf but 3mf
+                  % not recommended
+                  % unit - several unit cells defined in facet format and
+                  % then transformed to the desired location 3mf or stl
+                  % custom - data from a custom beam input file can be
+                  % converted to beam for save out
         
         resolution;
         strutDiameter;
@@ -27,14 +33,15 @@ classdef PLG
         replications
         origin
         
-        validExtensions  = {'xlsx'; 'csv'; 'custom'};
-        filterSpecOut = {'*.stl','3D geometry file';...
-            '*.amf','additive manufacturing format';...
-            '*.inp','Abaqus input file';...
-            '*.bin','Binary storage file';...
-            '*.xlsx','Excel format';...
-            '*.custom','Custom csv format for debug etc'};
-        strutureType;
+        loadExtensions = {'xml','custom unit cell file defined as a xml';...
+                          'stl', 'standard unit cell file';...
+                          'custom','standard beam output of PLG';...
+                          'csv','manualy defined beam'};
+        saveExtensions = {'stl', 'binary facet representation (compatibility)';...
+                          '3mf', 'tesselated facet file (recommended)';...
+                          'custom', 'beam output method';...
+                          'inp', 'Abaqus input file'};
+                      
         tolerance; % defined as 1/100 of the shortest length present
         dx; % length of a strut
     end
@@ -44,42 +51,38 @@ classdef PLG
             switch numel(varargin)
                 case 0
                     % generate a new lattice
+                    disp('generating a custom lattice from scratch');
                     obj.sphereAddition = false;
+                    obj.strutureType = 'beam';
                 case 1
                     % import a custom lattice file containing beam and node
                     % definitions see load function for more information
+                    display('Loading an existin file');
                     obj = load(obj,varargin{1});
-                    obj.strutureType = 0;
+                    obj.strutureType = 'custom';
                 case 15
                     %Generate a new regular lattice batch methods (legacy)
                     %   input order same as properties order
                     obj.latticeType = varargin{1};
-                    obj.resolution = varargin{2};
-                    obj.strutDiameter = varargin{3};
-                    if varargin{4}==1
-                        obj.sphereDiameter = varargin{5};
-                        obj.sphereResolution = varargin{6};
+                    obj = set(obj,'resolution',varargin{2});
+                    obj = set(obj,'strutDiameter',varargin{3});
+                    obj = set(obj,'sphereAddition',varargin{4});
+                    obj = set(obj,'sphereDiameter',varargin{5});
+                    obj = set(obj,'sphereResolution',varargin{6});
+                    
+                    unitSizer = [varargin{7},varargin{8},varargin{9}];
+                    replicate = [varargin{10},varargin{11},varargin{12}];
+                    orig      = [varargin{13},varargin{14},varargin{15}];
+                    obj = set(obj,'unitSize',unitSizer);
+                    obj = set(obj,'replications',replicate);
+                    obj = set(obj,'origin',orig);
+                    
+                    if ischar(varargin{1})
+                        units = {varargin{1}};
+                        obj = defineUnit(obj,units,'cartesian');
                     else
-                        obj.sphereDiameter = [];
-                        obj.sphereResolution = 2;
+                        
                     end
-                    
-                    obj.unitSize(1) = varargin{7};
-                    obj.unitSize(2) = varargin{8};
-                    obj.unitSize(3) = varargin{9};
-                    obj.replications(1) = varargin{10};
-                    obj.replications(2) = varargin{11};
-                    obj.replications(3) = varargin{12};
-                    obj.origin(1) = varargin{13};
-                    obj.origin(2) = varargin{14};
-                    obj.origin(3) = varargin{15};
-                    
-                    % set tolerance as required in clean lattice
-                    obj.tolerance = min([obj.unitSize(1),obj.unitSize(2),obj.unitSize(3)])/100;
-                    
-                    % generate the lattice structure based on inputs
-                    obj = latticeGenerate(obj); % generate structure
-                    
                 otherwise
                     error('Incorrect number of inputs');
             end
@@ -143,7 +146,6 @@ classdef PLG
             end
             rmpath('unitCell');
         end
-                
         function obj = cellReplication(obj)
             % if unitType is a beam it will replicate transformation if it is a facet type it will
             % replicate struts and verts
@@ -317,13 +319,22 @@ classdef PLG
         end
         function obj = plus(obj,obj1)
             % add obj1 to obj2
-            newStruts = obj1.struts+max(obj.struts(:));
-            obj.struts = [obj.struts;newStruts];
-            obj.strutDiameter = [obj.strutDiameter;obj1.strutDiamter];
-            obj.sphereDiameter = [obj.sphereDiameter;obj1.sphereDiameter];
-            obj.vertices = [obj.vertices;obj1.vertices];
+            if ~strcmp(obj.strutureType,obj1.strutureType)
+                error('Both PLG objects must be the samae type to add together');
+            end
+            switch obj.strutureType
+                case 'beam'
+                    % put the transforms together
+                    obj.transform = [obj.transform;obj1.transform];
+                otherwise
+                    newStruts = obj1.struts+max(obj.struts(:));
+                    obj.struts = [obj.struts;newStruts];
+                    obj.strutDiameter = [obj.strutDiameter;obj1.strutDiamter];
+                    obj.sphereDiameter = [obj.sphereDiameter;obj1.sphereDiameter];
+                    obj.vertices = [obj.vertices;obj1.vertices];
+            end
             
-            % remove any matching struts
+            % remove any matching struts/transforms
             obj = cleanLattice(obj);
         end
         
@@ -515,49 +526,24 @@ classdef PLG
         end
     end
     methods (Access=protected)%not called by the user
-        function obj = latticeGenerate(obj)
-            % generates a latticeStructure ready for simulation or saving as an stl etc
-            % all the below unit cells are stored in their own method section
-            switch obj.latticeType
-                case 'bcc' % BCC Cell
-                    [obj.vertices, obj.struts] = PLG.bcc(obj.unitSize(1),obj.unitSize(2),obj.unitSize(3));
-                case 'bcc2' % BCC Cell with no cantilevers
-                    [obj.vertices, obj.struts] = PLG.bcc2(obj.unitSize(1),obj.unitSize(2),obj.unitSize(3));
-                case 'bcz' % BCC Cell
-                    [obj.vertices, obj.struts] = PLG.bcz(obj.unitSize(1),obj.unitSize(2),obj.unitSize(3));
-                case 'fcc'
-                    [obj.vertices, obj.struts] = PLG.fcc(obj.unitSize(1),obj.unitSize(2),obj.unitSize(3));
-                case 'fccNoXY'
-                    [obj.vertices, obj.struts] = PLG.fccNoXY(obj.unitSize(1),obj.unitSize(2),obj.unitSize(3));
-                case 'fbcxyz'
-                    [obj.vertices, obj.struts] = PLG.fbcxyz(obj.unitSize(1),obj.unitSize(2),obj.unitSize(3));
-                case 'fcz'
-                    [obj.vertices, obj.struts] = PLG.fcz(obj.unitSize(1),obj.unitSize(2),obj.unitSize(3));
-                case 'fbcz'
-                    [obj.vertices, obj.struts] = PLG.fbcz(obj.unitSize(1),obj.unitSize(2),obj.unitSize(3));
-                case 'bcc_fcc'
-                    [obj.vertices, obj.struts] = PLG.bccFcc(obj.unitSize(1),obj.unitSize(2),obj.unitSize(3));
-                case 'fbc'
-                    [obj.vertices, obj.struts] = PLG.fbc(obj.unitSize(1),obj.unitSize(2),obj.unitSize(3));
-                case 'box'
-                    [obj.vertices, obj.struts] = PLG.box(obj.unitSize(1),obj.unitSize(2),obj.unitSize(3));
-            end
-            % translsate the unit cell to the correct location
-            obj = translate(obj,obj.origin(1),obj.origin(2),obj.origin(3));
-        end
         function obj = load(obj,file)
             % load a custom beam input file to generate a lattice structure
             parts = strsplit(file,'.');
             extension = parts{end};
             switch extension
-                case obj.validExtensions{1}
-                    % xls
-                    data = xlsread(file);
-                case obj.validExtensions{2}
-                    % csv
+                case obj.loadExtensions{1,1}
+                    % xml - use unitCell class
+                    %TODO
+                    
+                case obj.loadExtensions{2,1}
+                    % stl - use stlHandler class
+                    %TODO
+                    
+                case obj.loadExtensions{3,1}
+                    % custom - assumes custom model type
                     data = csvread(file);
-                case obj.validExtensions{3}
-                    % custom
+                case obj.loadExtensions{4,1}
+                    % csv - assumes custom model type
                     data = csvread(file);
                 otherwise
                     error('not a suitable load format');
