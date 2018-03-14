@@ -1,5 +1,5 @@
 classdef addSupport < PLG
-    %ADDSUPPORT subclass of PLG for adding support elements to a structure 
+    % ADDSUPPORT subclass of PLG for adding support elements to a custom lattice structure 
     %this will add elements of the users desired diameter from a supported node to the lowest z
     %normal node
     
@@ -14,6 +14,9 @@ classdef addSupport < PLG
             % initiate the PLG class
             obj = obj@PLG(file);
             
+            if ~strcmp(obj.unitType,'custom')
+                error('support can only be added to custom files')
+            end
             % find nodes that are to be supported
             vertsNeedSupport = smartBaseDectection(obj,incline,penetrationPercentage);
             

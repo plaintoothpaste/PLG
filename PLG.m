@@ -123,9 +123,9 @@ classdef PLG
             % if unitType is a beam it will replicate transformation if it is a facet type it will
             % replicate struts and verts
             % replaces obj.replications with a list of x,y,z coordinates for the unit cell
-            xPlacement = 0:obj.unitSize(1):obj.unitSize(1)*(obj.replications(1)-1);
-            yPlacement = 0:obj.unitSize(2):obj.unitSize(2)*(obj.replications(2)-1);
-            zPlacement = 0:obj.unitSize(3):obj.unitSize(3)*(obj.replications(3)-1);
+            xPlacement = [0:obj.unitSize(1):obj.unitSize(1)*(obj.replications(1)-1)]+obj.origin(1);
+            yPlacement = [0:obj.unitSize(2):obj.unitSize(2)*(obj.replications(2)-1)]+obj.origin(2);
+            zPlacement = [0:obj.unitSize(3):obj.unitSize(3)*(obj.replications(3)-1)]+obj.origin(3);
             [XX,YY,ZZ] = ndgrid(xPlacement,yPlacement,zPlacement);
             
             switch obj.unitType
@@ -162,7 +162,7 @@ classdef PLG
                     strutOut = arrayfun(@(x) obj.struts + x,strutCounter,'UniformOutput',0);
                     obj.struts = cell2mat(strutOut(:));
                 otherwise
-                    error('cell replication can not be performed until a unit cell is defined or multiple times');
+                    error('cell replication can not be performed until a unit cell is defined');
             end
         end
         function obj = cleanLattice(obj)
@@ -204,13 +204,25 @@ classdef PLG
             end
         end
         
-        function obj = custom2beam(obj)
+        function obj = beam2custom(obj)
             % changes a custom imported lattice file to a series of
             % transforms this enables 3mf and amf save out as well as more
             % efficient storage.
-            
             error('TODO');
         end
+        function obj = custom2beam(obj)
+            error('TODO');
+        end
+        function obj = beam2facet(obj)
+            error('TODO');
+        end
+        function obj = custom2facet(obj)
+            error('TODO');
+        end
+        function obj = unit2beam(obj)
+            error('TODO');
+        end
+        
         function plot(obj,colours)
             % plot the lattice with nodes highlighted currently only works for beams
             switch obj.unitType
@@ -251,54 +263,45 @@ classdef PLG
             ylabel('y')
             zlabel('z')
         end
-        
+    end
+    methods % lattice manipulations
         function obj = translate(obj,x,y,z)
             %translates a lattice in space
-            obj.vertices(:,1) = obj.vertices(:,1)+x;
-            obj.vertices(:,2) = obj.vertices(:,2)+y;
-            obj.vertices(:,3) = obj.vertices(:,3)+z;
+            switch obj.unitType
+                case 'beam'
+                    obj = beamTranslate(obj,x,y,z);
+                case 'custom'
+                    obj = standardTranslate(obj,x,y,z);
+                case 'facet'
+                    obj = standardTranslate(obj,x,y,z);
+            end
         end
         function obj = rotate(obj,wx,wy,wz)
             % rotations are in degrees about the main axes
-            thetaX = wx*pi/180;
-            thetaY = wy*pi/180;
-            thetaZ = wz*pi/180;
-            % rotation matricies
-            rx = [1           , 0          ,           0;...
-                0           , cos(thetaX),-sin(thetaX);...
-                0           , sin(thetaX), cos(thetaX)];
-            
-            ry = [cos(thetaY) ,0           , sin(thetaY);...
-                0           ,1           ,0           ;...
-                -sin(thetaY),0           , cos(thetaY)];
-            
-            rz = [cos(thetaZ) ,-sin(thetaZ),           0;...
-                sin(thetaZ) , cos(thetaZ),           0;...
-                0           ,0           ,           1];
-            
-            %rotation x then y then z split for debugging
-            numPoints = length(obj.vertices);
-            newPoints = zeros(size(obj.vertices));
-            for inc = 1:numPoints
-                newPoints(inc,:) = obj.vertices(inc,:)*rx';
+            % to radians
+            wx = wx*pi/180;
+            wy = wy*pi/180;
+            wz = wz*pi/180;
+            switch obj.unitType
+                case 'beam'
+                    obj = beamRotate(obj,wx,wy,wz);
+                case 'custom'
+                    
+                case 'facet'
+                    
             end
-            for inc = 1:numPoints
-                
-            end
-            for inc = 1:numPoints
-                
-            end
-            obj.vertices = newPoints;
         end
         function obj = plus(obj,obj1)
             % add obj1 to obj2
-            if ~strcmp(obj.strutureType,obj1.strutureType)
+            if ~strcmp(obj.unitType,obj1.unitType)
                 error('Both PLG objects must be the samae type to add together');
             end
-            switch obj.strutureType
+            switch obj.unitType
                 case 'beam'
                     % put the transforms together
                     obj.transform = [obj.transform;obj1.transform];
+                case 'unit'
+                    error('TODO');
                 otherwise
                     newStruts = obj1.struts+max(obj.struts(:));
                     obj.struts = [obj.struts;newStruts];
@@ -310,76 +313,8 @@ classdef PLG
             % remove any matching struts/transforms
             obj = cleanLattice(obj);
         end
-        
-        function obj = splitStruts(obj)
-            % takes a badly defined input lattice and scoures it for any struts that intersect and
-            % but do not connect to each other. It then breaks these struts and creates a new clean
-            % lattice
-            % this functions should only be used if the user knows what they are doing and may
-            % destroy unique diameter data
-            maxInd = 0; % current highest index in strutsOut
-            lengthstruts = 0; % current length of strutsOut
-            numstruts = length(obj.struts);
-            vertsOut = [];
-            strutsOut = [];
-            splitStruts = cell(numstruts,1);
-            % get tol
-            obj = getTolerance(obj);
-            tol = obj.tolerance;
-            struts2Check = 1:numstruts;
-            boundingBox = PLG.getBound(obj.vertices,obj.struts,struts2Check);
-            %% main loop
-            for inc=1:numstruts
-                % all struts with intersecting BB
-                struts2CheckTmp = struts2Check;
-                struts2CheckTmp(inc) = [];
-                currentBB = boundingBox{inc};
-                currentP1 = obj.vertices(obj.struts(inc,1),:);
-                currentP2 = obj.vertices(obj.struts(inc,2),:);
-                isIntersect = PLG.findBbIntersect(currentBB,boundingBox(struts2CheckTmp));
-                potentialStruts = struts2CheckTmp(isIntersect);
-                % remove that are already connected properly
-                potentialStruts = PLG.removeNormalConStruts(currentP1,currentP2,potentialStruts,obj.struts,obj.vertices,tol);
-                potentialStruts = PLG.removeParralelStruts(currentP1,currentP2,potentialStruts,obj.struts,obj.vertices);
-                % check if any struts are already split if so grab their sub BB and
-                % eleminate any that do not intersect
-                % potentialStruts = PLG.findSplitStrutBB(splitStruts,potentialStruts,currentBB,currentP1,currentP2,strutsOut,vertsOut,tol);
-                potentialStruts = [potentialStruts',ones(length(potentialStruts),1)];
-                if isempty(potentialStruts)
-                    % no struts to break up
-                    vertsOut = [vertsOut;currentP1;currentP2];
-                    strutsOut = [strutsOut;maxInd+1,maxInd+2];
-                    maxInd = maxInd+2;
-                    lengthstruts = lengthstruts+1; % number of new struts
-                else
-                    [vertsTmpOut,strutsTmpOut] = PLG.findIntersect(currentP1,currentP2,...
-                        potentialStruts,obj.struts,obj.vertices,...
-                        strutsOut,vertsOut,tol);
-                    vertsOut = [vertsOut;vertsTmpOut];
-                    strutsTmpOut = strutsTmpOut+maxInd;
-                    % debug: 
-                    % patch('struts',obj.struts(inc,:),'Vertices',obj.vertices,'EdgeColor',[1,0,0]);
-                    % patch('struts',obj.struts(potentialStruts,:),'Vertices',obj.vertices); hold on;
-                    % scatter3(vertsOut(:,1),vertsOut(:,2),vertsOut(:,3));
-
-                    maxInd = strutsTmpOut(end,2);
-                    strutsOut = [strutsOut;strutsTmpOut];
-                    st = lengthstruts+1; % number of new struts
-                    en = st+size(strutsTmpOut,1)-1;
-                    splitStruts{inc} = [st,en];
-                    lengthstruts = en;
-                end
-                
-            end
-            %% final assignment and cleanup note that this destroys strut diameter
-            obj.vertices = vertsOut;
-            obj.struts = strutsOut;
-            % remake sphere and strut diams same as the first value
-            obj.strutDiameter = obj.strutDiameter(1);
-            obj.sphereDiameter = obj.sphereDiameter(1);
-            obj = addDiams(obj);
-            obj = cleanLattice(obj);
-        end
+    end
+    methods % stats and advanced
         function obj = calcDx(obj)
             % returns the absolute vector length
             p1 = obj.vertices(obj.struts(:,1),:);
@@ -538,32 +473,58 @@ classdef PLG
                 obj.sphereDiameter = data(3:numNodes+2,4);
             end
         end
+        function obj = standardTranslate(obj,x,y,z)
+            obj.vertices(:,1) = obj.vertices(:,1)+x;
+            obj.vertices(:,2) = obj.vertices(:,2)+y;
+            obj.vertices(:,3) = obj.vertices(:,3)+z;
+        end
+        function obj = beamTranslate(obj,x,y,z)
+            obj.transform(:,10) = obj.transform(:,10)+x;
+            obj.transform(:,11) = obj.transform(:,11)+y;
+            obj.transform(:,12) = obj.transform(:,12)+z;
+        end
+        function obj = beamRotate(obj,wx,wy,wz)
+            transX = [1,0       ,0      ,0;...
+                      0,cos(wx) ,sin(wx),0;...
+                      0,-sin(wx),cos(wx),0;...
+                      0,0       ,0      ,1];
+            transY = [cos(wy),0,-sin(wy),0;...
+                      0      ,1,0       ,0;...
+                      sin(wy),0,cos(wy) ,0;...
+                      0      ,0,0       ,1];
+            transZ = [cos(wz) ,sin(wz),0,0;...
+                      -sin(wz),cos(wz),0,0;...
+                      0       ,0      ,1,0;...
+                      0       ,0      ,0,1];
+            fullTrans = transX * transY * transZ;
+            for inc = 1:size(obj.transform,1)
+                currentTransformFlat = obj.transform(inc,:);
+                currentFull = eye(4);
+                currentFull(1,1:3)=currentTransformFlat(1:3);
+                currentFull(2,1:3)=currentTransformFlat(4:6);
+                currentFull(3,1:3)=currentTransformFlat(7:9);
+                currentFull(4,1:3)=currentTransformFlat(10:12);
+                
+                newTrans = currentFull*fullTrans;
+                obj.transform(inc,:) = [newTrans(1,1:3),newTrans(2,1:3),newTrans(3,1:3),newTrans(4,1:3)];
+            end
+        end
     end
     methods % save out methods
         function save(obj)
             % this overloads the save function and allows saving out in various
             % formats however this only saves the latticeStructure structure
-            [fileName,pathName,filterIndex] = uiputfile(obj.filterSpecOut);
+            [fileName,pathName,filterIndex] = uiputfile(obj.saveExtensions);
             file = [pathName,fileName];
             switch filterIndex
                 case 1
-                    % stl
                     saveStl(obj,file);
                 case 2
-                    % AMF format
-                    saveAmf(obj,file);
-                    % TODO
-                case 3
-                    % ABAQUS
-                    saveAbaqus(obj,file);
-                case 4
-                    % 3mf format
                     save3mf(obj,file)
-                case 5
-                    saveExcel(obj,file);
-                case 6
-                    % custom file
+                case 3
                     saveCustom(obj,file)
+                case 4
+                    saveAbaqus(obj,file)
                 otherwise
                     error('No file saved')
             end
@@ -622,41 +583,6 @@ classdef PLG
             
             fclose(fid);
         end
-        function saveExcel(obj,fullName)
-            % saves data to an excel compatible format
-            numNodes=size(obj.vertices,1);
-            numLinks=size(obj.struts,1);
-            xlswrite(fullName,numNodes,'Sheet1','A1');
-            xlswrite(fullName,numLinks,'Sheet1','A2');
-            
-            locationVertices=strcat('A3:C',num2str(numNodes+2));
-            xlswrite(fullName,obj.vertices,'Sheet1',locationVertices);
-            locationstruts=strcat('A',num2str(numNodes+3),':B',num2str(numNodes+2+numLinks));
-            xlswrite(fullName,obj.struts,'Sheet1',locationstruts);
-            
-            % optional write depending on load type
-            if obj.strutureType ==0
-                % loaded custom
-                locationSpheres = strcat('D3:D',num2str(numNodes+2));
-                xlswrite(fullName,obj.sphereDiameter,'Sheet1',locationSpheres);
-                locationDiameters = strcat('C',num2str(numNodes+3),':C',num2str(numNodes+2+numLinks));
-                xlswrite(fullName,obj.strutDiameter,'Sheet1',locationDiameters);
-            else
-                % loaded regular
-                if ~isempty(obj.sphereDiameter)
-                    locationSpheres = strcat('D3:D',num2str(numNodes+2));
-                    data = ones(numNodes,1)*obj.sphereDiameter;
-                    xlswrite(fullName,data,'Sheet1',locationSpheres);
-                else
-                    locationSpheres = strcat('D3:D',num2str(numNodes+2));
-                    data = ones(numNodes,1)*0;
-                    xlswrite(fullName,data,'Sheet1',locationSpheres);
-                end
-                locationDiameters = strcat('C',num2str(numNodes+3),':C',num2str(numNodes+2+numLinks));
-                data = ones(numLinks,1)*obj.strutDiameter;
-                xlswrite(fullName,data,'Sheet1',locationDiameters);
-            end
-        end
         function saveCustom(obj,fullName)
             % saves data to an excel compatible format
             numNodes=size(obj.vertices,1);
@@ -669,24 +595,6 @@ classdef PLG
             
             data = [obj.struts,obj.strutDiameter];
             dlmwrite(fullName,data,'-append');
-        end
-        function saveAmf(obj,fullName)
-            % create object to hold the xml data 
-            amfDoc = com.mathworks.xml.XMLUtils.createDocument('amf');
-            amfNode = amfDoc.getDocumentElement;
-            amfNode.setAttribute('unit','millimeter');
-            
-            %write the geom for a unit cell
-            amfDoc = amfUnitObj(obj,amfDoc,amfNode,0);
-            
-            %write the geom for a single ball
-            amfDoc = amfBallObj(obj,amfDoc,amfNode,1);
-            
-            % replication
-            amfDoc = amfReplication(obj,amfDoc,amfNode,0);
-            
-            xmlwrite(fullName,amfDoc);
-            %zip(fullName,fullName);
         end
         function save3mf(obj,fullName)
             % safe a PLG lattice as a 3D manufacturing format file
@@ -724,267 +632,6 @@ classdef PLG
             delete('[Content_Types].xml');
             rmdir('3D','s');
             rmdir('_rels','s');
-        end
-    end
-    methods % AMF format
-        function amfDoc = amfBallObj(obj,amfDoc,amfNode,idNum)
-            % write out an object to represent a ball
-            objNode = amfDoc.createElement('object');
-            objNode.setAttribute('id',num2str(idNum));
-            amfNode.appendChild(objNode);
-            
-            meshNode = amfDoc.createElement('mesh');
-            objNode.appendChild(meshNode);
-            
-            verticesNode = amfDoc.createElement('vertices');
-            meshNode.appendChild(verticesNode);
-            
-            % write the vertexs
-            [x,y,z]=sphere(obj.sphereResolution); %create sphere with higher accuracy
-            ball.struts= convhull([x(:), y(:), z(:)]); %create triangle links
-            ball.vertices=[x(:),y(:),z(:)]; %store the points
-            ball.vertices = ball.vertices*obj.strutDiameter/2;
-            for inc = 1:size(ball.vertices,1)
-                vertexNode = amfDoc.createElement('vertex');
-                verticesNode.appendChild(vertexNode);
-                
-                coordNode = amfDoc.createElement('coordinates');
-                vertexNode.appendChild(coordNode);
-                
-                xNode = amfDoc.createElement('x');
-                val = sprintf('%3.8f',ball.vertices(inc,1));
-                xNode.appendChild(amfDoc.createTextNode(val));
-                coordNode.appendChild(xNode);
-                
-                yNode = amfDoc.createElement('y');
-                val = sprintf('%3.8f',ball.vertices(inc,2));
-                yNode.appendChild(amfDoc.createTextNode(val));
-                coordNode.appendChild(yNode);
-                
-                zNode = amfDoc.createElement('z');
-                val = sprintf('%3.8f',ball.vertices(inc,3));
-                zNode.appendChild(amfDoc.createTextNode(val));
-                coordNode.appendChild(zNode);
-            end
-            
-            %write the connections
-            volumeNode = amfDoc.createElement('volume');
-            meshNode.appendChild(volumeNode);
-            for inc = 1:size(ball.struts,1)
-                triangleNode = amfDoc.createElement('triangle');
-                volumeNode.appendChild(triangleNode);
-                
-                v1Node = amfDoc.createElement('v1');
-                val = sprintf('%0.0f',ball.struts(inc,1)-1);
-                v1Node.appendChild(amfDoc.createTextNode(val));
-                triangleNode.appendChild(v1Node);
-                
-                v2Node = amfDoc.createElement('v2');
-                val = sprintf('%0.0f',ball.struts(inc,2)-1);
-                v2Node.appendChild(amfDoc.createTextNode(val));
-                triangleNode.appendChild(v2Node);
-                
-                v3Node = amfDoc.createElement('v3');
-                val = sprintf('%0.0f',ball.struts(inc,3)-1);
-                v3Node.appendChild(amfDoc.createTextNode(val));
-                triangleNode.appendChild(v3Node);
-            end
-        end
-        function amfDoc = amfUnitObj(obj,amfDoc,amfNode,idNum)
-            % write a single unit cell as an object
-            radius = obj.strutDiameter/2;
-            numLinks = length(obj.struts);
-            
-            % setup the object
-            objNode = amfDoc.createElement('object');
-            objNode.setAttribute('id',num2str(idNum));
-            amfNode.appendChild(objNode);
-            
-            meshNode = amfDoc.createElement('mesh');
-            objNode.appendChild(meshNode);
-            
-            verticesNode = amfDoc.createElement('vertices');
-            meshNode.appendChild(verticesNode);
-
-            verts = cell(numLinks,1);
-            struts = cell(numLinks,1);
-            for i=1:numLinks
-                point1 = obj.vertices(obj.struts(i,1),:);
-                point2 = obj.vertices(obj.struts(i,2),:);
-                vector = point2-point1;
-                u1 = vector/norm(vector);
-                if u1(3)==1 || u1(3)==-1
-                    v1 = [1,0,0];
-                else
-                    v1 = cross([0,0,1],u1);
-                    v1 = v1/norm(v1);
-                end
-                offset = radius*v1;
-                
-                % verts
-                vert1end = zeros(obj.resolution,3);
-                vert2end = zeros(obj.resolution,3);
-                for j=1:obj.resolution
-                    Qrot1 = PLG.qGetRotQuaternion((j-1)*2*pi/obj.resolution, u1);
-                    absolutePointRotation = PLG.qRotatePoint(offset', Qrot1)';
-                    % end 1
-                    vert1end(j,:)=absolutePointRotation+point1;
-                    % end 2
-                    vert2end(j,:)=absolutePointRotation+point2;
-                end
-                verts{i} = [point1;vert1end;point2;vert2end];
-                
-                %struts
-                s1 = zeros(obj.resolution,3);
-                s2 = zeros(obj.resolution,3);
-                s3 = zeros(obj.resolution,3);
-                s4 = zeros(obj.resolution,3);
-                end1 = [1:obj.resolution]+1;
-                end2 = [1:obj.resolution]+obj.resolution+2;
-                end1 = circshift(end1,-1);
-                end2 = circshift(end2,-1);
-                for j=1:obj.resolution
-                    end1 = circshift(end1,1);
-                    end2 = circshift(end2,1);
-                    %middle point1 -> end 1
-                    s1(j,:) = [1,end1(2),end1(1)];
-                    %middle point2 -> end 2
-                    s2(j,:) = [obj.resolution+2,end2(1),end2(2)];
-                    %end1 -> end2
-                    s3(j,:) = [end1(1),end1(2),end2(1)];
-                    %end2 -> end1
-                    s4(j,:) = [end2(2),end2(1),end1(2)];
-                end
-                struts{i} = [s1;s2;s3;s4];
-            end
-            
-            %% join cells
-            strutsOut = [];
-            vertsOut = [];
-            count = 0;
-            for inc = 1:numLinks
-                strutsOut = [strutsOut;struts{i}+count];
-                count = max(strutsOut(:));
-                vertsOut = [vertsOut;verts{inc}];
-            end
-            
-            % make verts unique
-            [vertsOut,i,indexn]=uniquetol(vertsOut,1e-8,'ByRows',1,'DataScale',1);
-            strutsOut = indexn(strutsOut);
-            
-            %% write verts then connections
-            for inc = 1:size(vertsOut,1)
-                vertexNode = amfDoc.createElement('vertex');
-                verticesNode.appendChild(vertexNode);
-                
-                coordNode = amfDoc.createElement('coordinates');
-                vertexNode.appendChild(coordNode);
-                
-                xNode = amfDoc.createElement('x');
-                val = sprintf('%3.8f',vertsOut(inc,1));
-                xNode.appendChild(amfDoc.createTextNode(val));
-                coordNode.appendChild(xNode);
-                
-                yNode = amfDoc.createElement('y');
-                val = sprintf('%3.8f',vertsOut(inc,2));
-                yNode.appendChild(amfDoc.createTextNode(val));
-                coordNode.appendChild(yNode);
-                
-                zNode = amfDoc.createElement('z');
-                val = sprintf('%3.8f',vertsOut(inc,3));
-                zNode.appendChild(amfDoc.createTextNode(val));
-                coordNode.appendChild(zNode);
-            end
-            
-            volumeNode = amfDoc.createElement('volume');
-            meshNode.appendChild(volumeNode);
-            for inc = 1:size(strutsOut,1)
-                triangleNode = amfDoc.createElement('triangle');
-                volumeNode.appendChild(triangleNode);
-                
-                v1Node = amfDoc.createElement('v1');
-                val = sprintf('%0.0f',strutsOut(inc,1)-1);
-                v1Node.appendChild(amfDoc.createTextNode(val));
-                triangleNode.appendChild(v1Node);
-                
-                v2Node = amfDoc.createElement('v2');
-                val = sprintf('%0.0f',strutsOut(inc,2)-1);
-                v2Node.appendChild(amfDoc.createTextNode(val));
-                triangleNode.appendChild(v2Node);
-                
-                v3Node = amfDoc.createElement('v3');
-                val = sprintf('%0.0f',strutsOut(inc,3)-1);
-                v3Node.appendChild(amfDoc.createTextNode(val));
-                triangleNode.appendChild(v3Node);
-            end
-        end
-        function amfDoc = amfReplication(obj,amfDoc,amfNode,idNum)
-            % determine locations for the constellation tool for unit cells
-            % then ball
-            conNode = amfDoc.createElement('constellation');
-            conNode.setAttribute('id',num2str(idNum));
-            amfNode.appendChild(conNode);
-            
-            for incX = 1:obj.replications(1)
-                posX = (incX-1)*obj.unitSize(1);
-                for incY = 1:obj.replications(2)
-                    posY = (incY-1)*obj.unitSize(2);
-                    for incZ = 1:obj.replications(3)
-                        posZ = (incZ-1)*obj.unitSize(3);
-                        
-                        instNode = amfDoc.createElement('instance');
-                        instNode.setAttribute('objectid','0');
-                        conNode.appendChild(instNode);
-                        
-                        dNode = amfDoc.createElement('deltax');
-                        val = sprintf('%0.0f',posX);
-                        dNode.appendChild(amfDoc.createTextNode(val));
-                        instNode.appendChild(dNode);
-
-                        dNode = amfDoc.createElement('deltay');
-                        val = sprintf('%0.0f',posY);
-                        dNode.appendChild(amfDoc.createTextNode(val));
-                        instNode.appendChild(dNode);
-                        
-                        dNode = amfDoc.createElement('deltaz');
-                        val = sprintf('%0.0f',posZ);
-                        dNode.appendChild(amfDoc.createTextNode(val));
-                        instNode.appendChild(dNode);
-                    end
-                end
-            end
-            
-            %balls
-            if isempty(obj.sphereDiameter)
-                return;
-            end
-            
-            conNode = amfDoc.createElement('constellation');
-            conNode.setAttribute('id',num2str(idNum+1));
-            amfNode.appendChild(conNode);
-            
-            obj = cellReplication(obj);
-            
-            for inc = 1:size(obj.vertices,1)
-                instNode = amfDoc.createElement('instance');
-                instNode.setAttribute('objectid','1');
-                conNode.appendChild(instNode);
-                
-                dNode = amfDoc.createElement('deltax');
-                val = sprintf('%0.0f',obj.vertices(inc,1));
-                dNode.appendChild(amfDoc.createTextNode(val));
-                instNode.appendChild(dNode);
-                
-                dNode = amfDoc.createElement('deltay');
-                val = sprintf('%0.0f',obj.vertices(inc,2));
-                dNode.appendChild(amfDoc.createTextNode(val));
-                instNode.appendChild(dNode);
-                
-                dNode = amfDoc.createElement('deltaz');
-                val = sprintf('%0.0f',obj.vertices(inc,3));
-                dNode.appendChild(amfDoc.createTextNode(val));
-                instNode.appendChild(dNode);
-            end
         end
     end
     methods % stl format
@@ -1393,230 +1040,5 @@ classdef PLG
             Protated = Q(2:4);
         end
     end
-    methods (Static) % strut splitting methods
-        function boundingBox = getBound(vertices,struts,desired)
-            % get bounding box of ervery strut
-            %[minX minY minZ]
-            %[maxX maxY maxZ]
-            boundingBox = cell(length(desired),1);
-            numRequiredBB = length(desired);
-            for inc = 1:numRequiredBB
-                index = desired(inc);
-                maxers = max(vertices(struts(index,1),:),vertices(struts(index,2),:));
-                miners = min(vertices(struts(index,1),:),vertices(struts(index,2),:));
-                boundingBox{inc} = [miners;maxers];
-            end
-        end
-        function isIntersect = findBbIntersect(currentBB,boundingBox)
-            % determine which boundingBox intersect the currentBB
-            numBB = length(boundingBox);
-            isIntersect = false(numBB,1);
-            for inc = 1:numBB
-                checkBB = boundingBox{inc};
-                %check each dimension
-                inX = PLG.checkIn(currentBB(:,1),checkBB(:,1));
-                inY = PLG.checkIn(currentBB(:,2),checkBB(:,2));
-                inZ = PLG.checkIn(currentBB(:,3),checkBB(:,3));
-                
-                isIntersect(inc) = inX & inY & inZ;
-            end
-        end
-        function potentialStruts = removeNormalConStruts(p0,p1,potentialStruts,struts,verts,tol)
-            % remove struts that are already joined properly
-            numPotential = length(potentialStruts);
-            test = false(numPotential,1);
-            for inc = 1:numPotential
-                index = potentialStruts(inc);
-                q0 = verts(struts(index,1),:);
-                q1 = verts(struts(index,2),:);
-                diff1 = all(abs(p0-q0)<tol);
-                diff2 = all(abs(p1-q0)<tol);
-                diff3 = all(abs(p0-q1)<tol);
-                diff4 = all(abs(p1-q1)<tol);
-                test(inc) = any([diff1,diff2,diff3,diff4]);
-            end
-            potentialStruts(test) = [];
-        end
-        function potentialStruts = removeParralelStruts(p0,p1,potentialStruts,struts,verts)
-            v = (p0-p1)/norm(p0-p1);
-            numPotential = length(potentialStruts);
-            test = false(numPotential,1);
-            for inc = 1:numPotential
-                index = potentialStruts(inc);
-                q0 = verts(struts(index,1),:);
-                q1 = verts(struts(index,2),:);
-                u = (q0-q1)/norm(q0-q1);
-                test(inc) = all(abs(v-u)<1e-6);
-            end
-            potentialStruts(test) = [];
-        end
-        function potentialStruts =  findSplitStrutBB(splitStruts,potentialStruts,currentBB,currentP1,currentP2,strutsOut,vertsOut,tol)
-            % return split strut and orriginal potenial intersecting struts
-            potentialStruts = potentialStruts(:);
-            numPotentialStruts = length(potentialStruts);
-            potentialStruts = [potentialStruts,ones(numPotentialStruts,1)]; % second column will be 1 for orriginal array 2 for output array
-            % determine if any of the above potential struts have already being split
-            test = ~cellfun(@isempty,splitStruts(potentialStruts(:,1)));
-            strutsToReplace = potentialStruts(test,1);
-            
-            if isempty(strutsToReplace)
-                % no changes needed
-            else
-                % replace whole struts with split ones
-                % remove whole struts that are to be replaced
-                potentialStruts(test,:) = [];
-                % get split struts BB
-                desired = [];
-                for inc = strutsToReplace'
-                    desired = [desired,splitStruts{inc}(1):splitStruts{inc}(2)];
-                end
-                boundingBox = PLG.getBound(vertsOut,strutsOut,desired);
-                isIntersect = PLG.findBbIntersect(currentBB,boundingBox);
-                potentialNewStruts = desired(isIntersect);
-                potentialNewStruts = PLG.removeNormalConStruts(currentP1,currentP2,potentialNewStruts,strutsOut,vertsOut,tol);
-                % dont need to remove parallel as these are already removed in whole strut check
-                if isempty(potentialNewStruts)
-                    % nothing
-                else
-                    potentialStruts = [potentialStruts;...
-                        [potentialNewStruts',ones(length(potentialNewStruts),1)*2]];
-                end
-                
-            end
-        end
-        function [vertsTmpOut,strutsTmpOut]= findIntersect(p0,p1,potentialStruts,struts,verts,strutsOut,vertsOut,tol)
-            % for struts that have a coincident bounding box determine if they
-            % intersect
-            numPotentialStruts = size(potentialStruts,1);
-            coordinates = zeros(numPotentialStruts,3);
-            order = zeros(numPotentialStruts,1);
-            for inc = 1:numPotentialStruts
-                strutType = potentialStruts(inc,2);
-                index = potentialStruts(inc,1);
-                if strutType==1
-                    q0 = verts(struts(index,1),:);
-                    q1 = verts(struts(index,2),:);
-                else
-                    q0 = vertsOut(strutsOut(index,1),:);
-                    q1 = vertsOut(strutsOut(index,2),:);
-                end
-                [dist,sc,p1Out,p2Out] = PLG.distBetween2Segment(p0, p1, q0, q1);
-                if dist<tol
-                    coordinates(inc,:) = mean([p1Out;p2Out],1);
-                    order(inc) = sc; % the larger the value the further the point is from p1
-                else
-                    coordinates(inc,:) = NaN;
-                    order(inc) = NaN; % the larger the value the further the point is from p1
-                end
-            end
-            % get unique coordinates with NaN removed
-            test = isnan(order);
-            order(test)=[];
-            coordinates(test,:) = [];
-            [order,index] = uniquetol(order,tol,'DataScale',1);
-            coordinates = coordinates(index,:);
-            % create a face and verts array
-            numNewstruts = length(order)+1;
-            vertsTmpOut = [p1;coordinates;p0];
-            strutsTmpOut = [1:numNewstruts;2:(numNewstruts+1)]';
-        end
-        function isIn = checkIn(pointsMain,pointsCheck)
-            % determine if pointsCheck intersect pointsMain
-            % pointsMain = [minPoint,maxPoint]
-            if pointsMain(1) < pointsCheck(1)
-                lowRange = pointsMain;
-                highRange = pointsCheck;
-            else
-                lowRange = pointsCheck;
-                highRange = pointsMain;
-            end
-            
-            isIn = lowRange(2) >= highRange(1);
-            
-        end
-        function [distance, fromP1, coord1, coord2] = distBetween2Segment(p0, p1, q0, q1)
-            % code from: https://au.mathworks.com/matlabcentral/fileexchange/32487-shortest-distance-between-two-line-segments?focused=3821416&tab=function
-            u = p0 - p1;
-            v = q0 - q1;
-            w = p1 - q1;
-            
-            a = dot(u,u);
-            b = dot(u,v);
-            c = dot(v,v);
-            d = dot(u,w);
-            e = dot(v,w);
-            D = a*c - b*b;
-            sD = D;
-            tD = D;
-            
-            SMALL_NUM = 0.00000001;
-            
-            % compute the line parameters of the two closest points
-            if (D < SMALL_NUM)  % the lines are almost parallel
-                sN = 0.0;       % force using point P0 on segment S1
-                sD = 1.0;       % to prevent possible division by 0.0 later
-                tN = e;
-                tD = c;
-            else                % get the closest points on the infinite lines
-                sN = (b*e - c*d);
-                tN = (a*e - b*d);
-                if (sN < 0.0)   % sc < 0 => the s=0 edge is visible
-                    sN = 0.0;
-                    tN = e;
-                    tD = c;
-                elseif (sN > sD)% sc > 1 => the s=1 edge is visible
-                    sN = sD;
-                    tN = e + b;
-                    tD = c;
-                end
-            end
-            
-            if (tN < 0.0)            % tc < 0 => the t=0 edge is visible
-                tN = 0.0;
-                % recompute sc for this edge
-                if (-d < 0.0)
-                    sN = 0.0;
-                elseif (-d > a)
-                    sN = sD;
-                else
-                    sN = -d;
-                    sD = a;
-                end
-            elseif (tN > tD)       % tc > 1 => the t=1 edge is visible
-                tN = tD;
-                % recompute sc for this edge
-                if ((-d + b) < 0.0)
-                    sN = 0;
-                elseif ((-d + b) > a)
-                    sN = sD;
-                else
-                    sN = (-d + b);
-                    sD = a;
-                end
-            end
-            
-            % finally do the division to get sc and tc
-            if(abs(sN) < SMALL_NUM)
-                sc = 0.0;
-            else
-                sc = sN / sD;
-            end
-            
-            if(abs(tN) < SMALL_NUM)
-                tc = 0.0;
-            else
-                tc = tN / tD;
-            end
-            
-            % get the difference of the two closest points
-            dP = w + (sc * u) - (tc * v);  % = S1(sc) - S2(tc)
-            
-            %% outputs
-            distance = norm(dP);
-            fromP1 = sc;
-            coord1 = p1+sc*u;   % Closest point on object 1
-            coord2 = q1+tc*v;   % Closest point on object 2
-            
-        end
-    end
+    
 end
