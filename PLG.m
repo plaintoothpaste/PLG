@@ -36,7 +36,8 @@ classdef PLG
         loadExtensions = {'xml','custom unit cell file defined as a xml';...
                           'stl', 'standard unit cell file';...
                           'custom','standard beam output of PLG';...
-                          'csv','manualy defined beam'};
+                          'csv','manualy defined beam model';...
+                          'xlsx','manualy defined beam model'};
         saveExtensions = {'stl', 'binary facet representation (compatibility)';...
                           '3mf', 'tesselated facet file (recommended)';...
                           'custom', 'beam output method';...
@@ -53,36 +54,13 @@ classdef PLG
                     % generate a new lattice
                     disp('generating a custom lattice from scratch');
                     obj.sphereAddition = false;
-                    obj.strutureType = 'beam';
+                    obj.unitType = 'beam';
                 case 1
                     % import a custom lattice file containing beam and node
                     % definitions see load function for more information
-                    display('Loading an existin file');
+                    disp('Loading an existin file');
                     obj = load(obj,varargin{1});
-                    obj.strutureType = 'custom';
-                case 15
-                    %Generate a new regular lattice batch methods (legacy)
-                    %   input order same as properties order
-                    obj.latticeType = varargin{1};
-                    obj = set(obj,'resolution',varargin{2});
-                    obj = set(obj,'strutDiameter',varargin{3});
-                    obj = set(obj,'sphereAddition',varargin{4});
-                    obj = set(obj,'sphereDiameter',varargin{5});
-                    obj = set(obj,'sphereResolution',varargin{6});
-                    
-                    unitSizer = [varargin{7},varargin{8},varargin{9}];
-                    replicate = [varargin{10},varargin{11},varargin{12}];
-                    orig      = [varargin{13},varargin{14},varargin{15}];
-                    obj = set(obj,'unitSize',unitSizer);
-                    obj = set(obj,'replications',replicate);
-                    obj = set(obj,'origin',orig);
-                    
-                    if ischar(varargin{1})
-                        units = {varargin{1}};
-                        obj = defineUnit(obj,units,'cartesian');
-                    else
-                        
-                    end
+                    obj.unitType = 'custom';
                 otherwise
                     error('Incorrect number of inputs');
             end
@@ -114,37 +92,32 @@ classdef PLG
             end
         end
         function obj = defineUnit(obj,unitNames,type)
-            % define a unit cell and wheter output is radial or cartesian
-            addpath('unitCell');
+            % define a unit cell and wheter output should be beam(default)
+            % unit or facet
             if ~exist('type','var')
-                type = 'cartesian';
-                warning('Coordinate system not specified using cartesian')
-            end
-            if ~iscell(unitNames)
-                error('unitNames input must be a cell and can contain multiple names')
+                type = 'beam';
             end
             
-            
+            addpath('unitCell');
+            unitObj = unitCell(unitNames,obj);
             switch type
-                case 'cartesian'
-                    % for the list of unit cell names generate an object that holds them all
-                    if length(unitNames)>1
-                        unitObj = unitCell(unitNames{1});
-                        for inc = 2:length(unitNames)
-                            unitObj = addUnit(unitObj,unitNames{inc});
-                        end
-                    else
-                        unitObj = unitCell(unitNames{1});
-                    end
-                    unitObj = set(unitObj,'diameter',obj.strutDiameter,'resolution',obj.resolution,'scale',obj.unitSize);
-                    [obj.vertices,obj.struts,obj.transform,obj.unitName,obj.unitType] = output(unitObj);
-                case 'radial'
-                    error('radial/polar coordinate system not yet supported');
+                case 'beam'
+                    [vertices,connections,transform,name,type] = beamOut(unitObj);
+                case 'unit'
+                    [vertices,connections,transform,name,type] = unitOut(unitObj);
+                case 'facet'
+                    [vertices,connections,transform,name,type] = facetOut(unitObj);
                 otherwise
-                    error('coordinate system type not supported');
-                    
+                    error('not a suitable type');
             end
             rmpath('unitCell');
+            
+            % place onto object
+            obj.unitType = type;
+            obj.transform = transform;
+            obj.vertices = vertices;
+            obj.struts = connections;
+            obj.unitName = name;
         end
         function obj = cellReplication(obj)
             % if unitType is a beam it will replicate transformation if it is a facet type it will
@@ -534,17 +507,20 @@ classdef PLG
                 case obj.loadExtensions{1,1}
                     % xml - use unitCell class
                     %TODO
-                    
+                    error('use unit generate to load file')
                 case obj.loadExtensions{2,1}
                     % stl - use stlHandler class
                     %TODO
-                    
+                    error('use unitCell/stl2unitCell.m to convert to a xml for loading')
                 case obj.loadExtensions{3,1}
                     % custom - assumes custom model type
                     data = csvread(file);
                 case obj.loadExtensions{4,1}
                     % csv - assumes custom model type
                     data = csvread(file);
+                case obj.loadExtensions{5,1}
+                    % exvel - assumes custom model
+                    data = xlsread(file);
                 otherwise
                     error('not a suitable load format');
             end

@@ -3,116 +3,77 @@ classdef unitCell
     %cell based on a series of methods
     
     properties
+        unitName
         vertices
         connections
-        unitType
-        unitName
         
-        diameter
-        resolution
-        scale
+        plgObj
+        unitType
     end
     
     methods
-        function obj = unitCell(unitName)
+        function obj = unitCell(names,plgObj)
             %UNITCELL Constructs this class as loads a unit cell
-            obj.vertices = [];
-            obj.connections = [];
-            obj.unitType = [];
-            obj.unitName = [];
-            obj.diameter = [];
-            obj.resolution = [];
-            
-            obj = load(obj,unitName);
-        end
-        function obj = addUnit(obj,unitName)
-            % add a unit cell to the object
-            obj = load(obj,unitName);
-        end
-        function obj = set(obj,varargin)
-            % set a value in the PLG that can be edited
-            allowable={'diameter','resolution','scale'};
-            dataType = {'double','double','double'};
-            dataSize = {[1,1],[1,1],[1,3]};
-            % setup parser
-            p = inputParser();
-            for inc = 1:length(allowable)
-                name = allowable{inc};
-                class = dataType{inc};
-                sizer = dataSize{inc};
-                f = @(x) validateattributes(x,{class},{'size', sizer,'nonempty'});
-                addOptional(p,name,[],f)
-            end
-            parse(p,varargin{:});
-            
-            % apply values
-            for inc = 1:length(allowable)
-                name = allowable{inc};
-                result = p.Results.(name);
-                if ~isempty(result)
-                    obj.(name) = result;
-                end
+            obj.plgObj = plgObj;
+            for inc = 1:length(names)
+                obj = load(obj,names{inc});
             end
         end
-        function obj = beam2facets(obj)
+        function [vertices,connections,transform,name,type] = facetOut(obj)
             % converts a beam model to a facet model, primarially done to allow addition of beam and
             % facet unit cells
             % TODO
         end
-        function [vertices,connections,transform,name,type] = output(obj)
-            % if the model is a beam model then a single strut [0,0,-0.5]->[0,0,0.5] 
+        function [vertices,connections,transform,name,type] = unitOut(obj)
+            % TODO
+        end
+        function [vertices,connections,transform,name,type] = beamOut(obj)
+            % if the model is a beam model then a single strut [0,0,-0.5]->[0,0,0.5]
             % with its repspective affine transform will be supplied.
-            if isempty(obj.diameter) || isempty(obj.resolution) || isempty(obj.scale)
+            if isempty(obj.plgObj.strutDiameter) || isempty(obj.plgObj.resolution) || isempty(obj.plgObj.unitSize)
                 error('diameter and resolution must be supplied');
             end
+            connections = [1,2];
+            transform = [];
+            vertices = [0,0,-0.5;0,0,0.5];
+            thirdPoint = vertices(1,:)+[1,0,0];
+            forthPoint = vertices(2,:)+[0,1,0];
+            originalPoints = [vertices(1,:),1;vertices(2,:),1;thirdPoint,1;forthPoint,1];
+            name = obj.unitName;
+            type = obj.unitType;
+            obj = scale(obj);
             
-            switch obj.unitType
-                case 'beam'
-                    connections = [1,2];
-                    transform = [];
-                    vertices = [0,0,-0.5;0,0,0.5];
-                    thirdPoint = vertices(1,:)+[1,0,0];
-                    forthPoint = vertices(2,:)+[0,1,0];
-                    originalPoints = [vertices(1,:),1;vertices(2,:),1;thirdPoint,1;forthPoint,1];
-                    name = obj.unitName;
-                    type = obj.unitType;
-                    obj = scaleBeam(obj);
-                    
-                    % convert connections to transforms
-                    for inc = 1:size(obj.connections,1)
-                        point1 = obj.vertices(obj.connections(inc,1),:);
-                        point2 = obj.vertices(obj.connections(inc,2),:);
-                        vector = point2-point1;
-                        u = vector/norm(vector);
-                        if abs(u(3))==1 
-                            crosser = [1,0,0];
-                        else % perfect z or any other vector
-                            crosser = [0,0,1];
-                        end
-                        v = cross(crosser,u);
-                        v = v/norm(v);
-                        offset = obj.diameter/2*v;
-                        point3 = point1+offset;
-                        
-                        vector = point3-point1;
-                        w = vector/norm(vector);
-                        x = cross(w,u);
-                        x = x/norm(x);
-                        offset = obj.diameter/2*x;
-                        point4 = point2-offset;
-                        
-                        newPoints = [point1,1;point2,1;point3,1;point4,1;];
-                        
-                        affine = originalPoints\newPoints;
-                        transform = [transform;affine(1,1:3),affine(2,1:3),affine(3,1:3),affine(4,1:3)];
-                        
-                    end
-                case 'facet'
-                    transform = [];
-                    error('TODO');
-            end
+            % convert connections to transforms
+            for inc = 1:size(obj.connections,1)
+                point1 = obj.vertices(obj.connections(inc,1),:);
+                point2 = obj.vertices(obj.connections(inc,2),:);
+                vector = point2-point1;
+                u = vector/norm(vector);
+                if abs(u(3))==1
+                    crosser = [1,0,0];
+                else % perfect z or any other vector
+                    crosser = [0,0,1];
+                end
+                v = cross(crosser,u);
+                v = v/norm(v);
+                offset = obj.plgObj.strutDiameter/2*v;
+                point3 = point1+offset;
                 
-        end  
+                vector = point3-point1;
+                w = vector/norm(vector);
+                x = cross(w,u);
+                x = x/norm(x);
+                offset = obj.plgObj.strutDiameter/2*x;
+                point4 = point2-offset;
+                
+                newPoints = [point1,1;point2,1;point3,1;point4,1;];
+                
+                affine = originalPoints\newPoints;
+                transform = [transform;affine(1,1:3),affine(2,1:3),affine(3,1:3),affine(4,1:3)];
+                
+            end
+            
+        end
     end
     methods (Access=protected)
         function obj = load(obj,unitName)
@@ -162,10 +123,10 @@ classdef unitCell
                 obj.unitType = xmlStructure.Children(strutLoc).Attributes(2).Value;
             end
         end
-        function obj = scaleBeam(obj)
-            obj.vertices(:,1) = obj.vertices(:,1)*obj.scale(1);
-            obj.vertices(:,2) = obj.vertices(:,2)*obj.scale(2);
-            obj.vertices(:,3) = obj.vertices(:,3)*obj.scale(3);
+        function obj = scale(obj)
+            obj.vertices(:,1) = obj.vertices(:,1)*obj.plgObj.unitSize(1);
+            obj.vertices(:,2) = obj.vertices(:,2)*obj.plgObj.unitSize(2);
+            obj.vertices(:,3) = obj.vertices(:,3)*obj.plgObj.unitSize(3);
         end
     end
     methods (Static) % xml loading functions
