@@ -612,12 +612,25 @@ classdef PLG
             threeMfNode.appendChild(resourcesNode);
             
             % write the geom for a single strut and ball (if required)
-            threeMfDoc = threeMfUnitObj(obj,threeMfDoc,resourcesNode,0);
+            idStrut = 0;
+            idStrutComponents = 1;
+            threeMfDoc = threeMfUnitObj(obj,threeMfDoc,resourcesNode,idStrut);
+            threeMfDoc = threeMfreplicate_unit(obj,threeMfDoc,resourcesNode,idStrut,idStrutComponents);
+            % write each object (with all its components 1 time
+            buildNode = threeMfDoc.createElement('build');
+            threeMfNode.appendChild(buildNode);
+            itemNode = threeMfDoc.createElement('item');
+            itemNode.setAttribute('objectid',num2str(idStrutComponents));
+            buildNode.appendChild(itemNode);
             if obj.sphereAddition
-                threeMfDoc = threeMfBallObj(obj,threeMfDoc,resourcesNode,1);
+                idBall = 2;
+                idBallComponents = 3;
+                threeMfDoc = threeMfBallObj(obj,threeMfDoc,resourcesNode,idBall);
+                threeMfDoc = threeMfreplicate_Ball(obj,threeMfDoc,resourcesNode,idBall,idBallComponents);
+                itemNode = threeMfDoc.createElement('item');
+                itemNode.setAttribute('objectid',num2str(idBallComponents));
+                buildNode.appendChild(itemNode);
             end
-            %write the replications of the above data
-            threeMfDoc = threeMfreplicate(obj,threeMfDoc,threeMfNode,0,1);
             
             % gather the other supplementary files that are required to make a 3mf file
             mkdir('_rels');
@@ -912,28 +925,47 @@ classdef PLG
                 triNode.appendChild(triangleNode);
             end
         end
-        function threeMfDoc = threeMfreplicate(obj,threeMfDoc,threeMfNode,idUnit,idBall)
-            % for every transform write it to the file
-            % build item holds all replications
-            buildNode = threeMfDoc.createElement('build');
-            threeMfNode.appendChild(buildNode);
+        function threeMfDoc = threeMfreplicate_unit(obj,threeMfDoc,resourcesNode,idRef,newId)
+            % for every transform write it to the file in a object that holds every component of the
+            % struts
+            
+            % setup the object
+            objNode = threeMfDoc.createElement('object');
+            objNode.setAttribute('id',num2str(newId));
+            objNode.setAttribute('type','model');
+            resourcesNode.appendChild(objNode);
+            
+            componentsNode = threeMfDoc.createElement('components');
+            objNode.appendChild(componentsNode);
             
             numTransform = size(obj.transform,1);
             for inc = 1:numTransform
-                itemNode = threeMfDoc.createElement('item');
-                itemNode.setAttribute('objectid',num2str(idUnit));
+                componentNode = threeMfDoc.createElement('component');
+                componentNode.setAttribute('objectid',num2str(idRef));
                 
                 currentTransform = obj.transform(inc,:);
                 str = sprintf('%5.5f ',currentTransform);
                 str(end) = [];
-                itemNode.setAttribute('transform',str);
-                buildNode.appendChild(itemNode);
+                componentNode.setAttribute('transform',str);
+                componentsNode.appendChild(componentNode);
             end
             
             if ~obj.sphereAddition
                 return
             end
-            % write the ball locations if required
+        end
+        function threeMfDoc = threeMfreplicate_Ball(obj,threeMfDoc,resourcesNode,idRef,newId)
+            % write the ball locations
+            
+            % setup the object
+            objNode = threeMfDoc.createElement('object');
+            objNode.setAttribute('id',num2str(newId));
+            objNode.setAttribute('type','model');
+            resourcesNode.appendChild(objNode);
+            
+            componentsNode = threeMfDoc.createElement('components');
+            objNode.appendChild(componentsNode);
+            
             numTransform =size(obj.transform,1);
             verts = [];
             points = [obj.vertices,[1;1]];
@@ -949,12 +981,12 @@ classdef PLG
             end
             verts = unique(verts,'rows');
             for inc = 1:size(verts,1)
-                itemNode = threeMfDoc.createElement('item');
-                itemNode.setAttribute('objectid',num2str(idBall));
+                componentNode = threeMfDoc.createElement('component');
+                componentNode.setAttribute('objectid',num2str(idRef));
                 
                 str = sprintf('1 0 0 0 1 0 0 0 1 %5.5f %5.5f %5.5f', verts(inc,1), verts(inc,2),verts(inc,3));
-                itemNode.setAttribute('transform',str);
-                buildNode.appendChild(itemNode);
+                componentNode.setAttribute('transform',str);
+                componentsNode.appendChild(componentNode);
             end
         end
     end

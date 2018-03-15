@@ -26,8 +26,6 @@ obj1 = rotate(obj,0,0,90);
 obj2 = translate(obj,0,cornerSpacing,0);
 obj3 = translate(obj1,cornerSpacing,0,0);
 obj = obj1+obj2+obj3+obj;
-
-obj = cleanLattice(obj);
 % plot(obj);
 cornerObj = obj;
 %% make the straight sections
@@ -40,7 +38,7 @@ obj = set(obj,'origin',[originOffset,0,0]);
 obj = defineUnit(obj,{'bcc','xRods'});
 obj = set(obj,'replications',[repSpacing/unitSize,1,1]);
 obj = cellReplication(obj);
-obj = cleanLattice(obj);
+
 
 obj1 = translate(obj,0,0,cornerSpacing);
 obj = obj1+obj;
@@ -83,4 +81,8 @@ diagYZ = translate(diagYZ,cornerSpacing,0,0);
 
 %% save out
 obj = objX+objY+objZ+cornerObj+diagXZ+diagYZ;
+obj = cleanLattice(obj);
+obj = set(obj,'sphereAddition',true);
+obj = set(obj,'sphereDiameter',1.1*diameter);
+obj = set(obj,'sphereResolution',20);
 save3mf(obj,'complexLattice');
