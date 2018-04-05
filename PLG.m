@@ -78,7 +78,7 @@ classdef PLG
                 class = dataType{inc};
                 sizer = dataSize{inc};
                 f = @(x) validateattributes(x,{class},{'size', sizer,'nonempty'});
-                addOptional(p,name,[],f)
+                addParameter(p,name,[],f)
             end
             parse(p,varargin{:});
             
