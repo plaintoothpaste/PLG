@@ -30,8 +30,11 @@ classdef unitCell
         function [vertices,connections,transform,name,type] = beamOut(obj)
             % if the model is a beam model then a single strut [0,0,-0.5]->[0,0,0.5]
             % with its repspective affine transform will be supplied.
-            if isempty(obj.plgObj.strutDiameter) || isempty(obj.plgObj.resolution) || isempty(obj.plgObj.unitSize)
+            if isempty(obj.plgObj.strutDiameter) || isempty(obj.plgObj.resolution)
                 error('diameter and resolution must be supplied');
+            end
+            if numel(obj.plgObj.strutDiameter)==1
+                obj.plgObj.strutDiameter = ones(size(obj.connections,1),1)*obj.plgObj.strutDiameter;
             end
             connections = [1,2];
             transform = [];
@@ -41,7 +44,6 @@ classdef unitCell
             originalPoints = [vertices(1,:),1;vertices(2,:),1;thirdPoint,1;forthPoint,1];
             name = obj.unitName;
             type = obj.unitType;
-            obj = scale(obj);
             
             % convert connections to transforms
             for inc = 1:size(obj.connections,1)
@@ -56,14 +58,14 @@ classdef unitCell
                 end
                 v = cross(crosser,u);
                 v = v/norm(v);
-                offset = obj.plgObj.strutDiameter/2*v;
+                offset = obj.plgObj.strutDiameter(inc)/2*v;
                 point3 = point1+offset;
                 
                 vector = point3-point1;
                 w = vector/norm(vector);
                 x = cross(w,u);
                 x = x/norm(x);
-                offset = obj.plgObj.strutDiameter/2*x;
+                offset = obj.plgObj.strutDiameter(inc)/2*x;
                 point4 = point2-offset;
                 
                 newPoints = [point1,1;point2,1;point3,1;point4,1;];

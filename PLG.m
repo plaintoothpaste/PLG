@@ -1,18 +1,11 @@
 classdef PLG
-    % The PLG program rewritten in class form
-    % only core lattice generation functions will be stored here
-    % an input is required to use this
-    % EXAMPLE
-    % obj = PLG('bcc',12,0.3,...
-    %     1,0.5,8,2,2,2,...
-    %     4,4,5,0,0,0);
-    % save(obj);
+    % The PLG program designed for the generation of regular repeating stuctures, normally a lattice
+    % but not limited to lattices.
     properties (SetAccess=protected)
         unitName;
-        unitType; % beam - transform storage of single beam 3mf compatible
-                  % facet - all facets can save out as stl or 3mf but 3mf
-                  % not recommended
-                  % unit - several unit cells defined in facet format and
+        unitType; % beam - transform storage of single beam can be saved to all formats 
+                  % facet - all facets can save out as stl or 3mf but 3mf not recommended
+                  % unit - one or more unit cells defined in facet format and
                   % then transformed to the desired location 3mf or stl
                   % custom - data from a custom beam input file can be
                   % converted to beam for save out
@@ -40,8 +33,8 @@ classdef PLG
                           'xlsx','manualy defined beam model'};
         saveExtensions = {'stl', 'binary facet representation (compatibility)';...
                           '3mf', 'tesselated facet file (recommended)';...
-                          'custom', 'beam output method';...
-                          'inp', 'Abaqus input file'};
+                          'custom', 'beam output method (simulation)';...
+                          'inp', 'Abaqus input file (TODO)'};
                       
         tolerance; % defined as 1/100 of the shortest length present
         dx; % length of a strut
@@ -52,15 +45,17 @@ classdef PLG
             switch numel(varargin)
                 case 0
                     % generate a new lattice
-                    disp('generating a custom lattice from scratch');
+                    disp('generating a lattice from scratch');
                     obj.sphereAddition = false;
                     obj.unitType = 'beam';
                 case 1
                     % import a custom lattice file containing beam and node
                     % definitions see load function for more information
-                    disp('Loading an existin file');
+                    disp('Loading an existing file');
                     obj = load(obj,varargin{1});
                     obj.unitType = 'custom';
+                    obj.sphereAddition = true;
+                    obj.unitName = varargin{1};
                 otherwise
                     error('Incorrect number of inputs');
             end
@@ -100,6 +95,7 @@ classdef PLG
             
             addpath('unitCell');
             unitObj = unitCell(unitNames,obj);
+            obj = scale(obj);
             switch type
                 case 'beam'
                     [vertices,connections,transform,name,type] = beamOut(unitObj);
@@ -148,7 +144,7 @@ classdef PLG
                             obj.transform(currentInc,:) = [newAffine(1,1:3),newAffine(2,1:3),newAffine(3,1:3),newAffine(4,1:3)];
                         end
                     end
-                case 'facet'
+                case 'custom'
                     vertOut = arrayfun(@(x,y,z) ...
                         [obj.vertices(:,1) + x,...
                         obj.vertices(:,2) + y,...
@@ -162,7 +158,7 @@ classdef PLG
                     strutOut = arrayfun(@(x) obj.struts + x,strutCounter,'UniformOutput',0);
                     obj.struts = cell2mat(strutOut(:));
                 otherwise
-                    error('cell replication can not be performed until a unit cell is defined');
+                    error('cell replication can not be performed with this method or a unit cell is not yet defined');
             end
         end
         function obj = cleanLattice(obj)
@@ -174,7 +170,7 @@ classdef PLG
                     tester = round(obj.transform,6,'significant');
                     [~,I] = unique(tester,'rows');
                     obj.transform = obj.transform(I,:);
-                case 'facet'
+                case 'custom'
                     % tolerance - get the shortest strut and divide by 1000
                     verts1 = obj.vertices(obj.struts(:,1),:);
                     verts2 = obj.vertices(obj.struts(:,2),:);
@@ -183,6 +179,9 @@ classdef PLG
                     % duplicate vertices
                     [obj.vertices,i,indexn]=uniquetol(obj.vertices,obj.tolerance,'ByRows',1,'DataScale',1);
                     if ~isempty(obj.sphereDiameter)
+                        if numel(obj.sphereDiameter)==1
+                            obj.sphereDiameter = ones(size(verts1,1),1)*obj.sphereDiameter;
+                        end
                         obj.sphereDiameter = obj.sphereDiameter(i);
                     end
                     obj.struts = indexn(obj.struts);
@@ -193,6 +192,9 @@ classdef PLG
                     obj.struts(test,1) = tmp(test,2);
                     obj.struts(test,2) = tmp(test,1);
                     [obj.struts,i] = unique(obj.struts,'rows');
+                    if numel(obj.strutDiameter)==1
+                        obj.strutDiameter = ones(size(tmp,1),1)*obj.strutDiameter;
+                    end
                     obj.strutDiameter = obj.strutDiameter(i);
                     
                     % duplicate struts zero length
@@ -200,20 +202,49 @@ classdef PLG
                     obj.struts(test,:)=[];
                     obj.strutDiameter(test)=[];
                 otherwise
-                    error('cleaning  can not be performed on this unitType');
+                    error('cleaning can not be performed on this unitType');
             end
         end
         
         function obj = beam2custom(obj)
-            % changes a custom imported lattice file to a series of
-            % transforms this enables 3mf and amf save out as well as more
-            % efficient storage.
-            error('TODO');
+            % changes a beam file to the custom import format
+            % this enables stl and custom save
+            numTransforms = size(obj.transform,1);
+            newVerts = zeros(numTransforms*2,3);
+            newFacets = [(1:2:(numTransforms*2-1))',(2:2:numTransforms*2)'];
+            locations = [obj.vertices,[1;1]];
+            for inc = 1:numTransforms
+                squareTransform = flat2squareTransform(obj,inc);
+                newLocation = locations*squareTransform;
+                newVerts((2*inc-1):2*inc,:) = newLocation(:,1:3);
+            end
+            % replace vertices and facets change unit type and clear transforms
+            obj.unitType = 'custom';
+            obj.vertices = newVerts;
+            obj.struts = newFacets;
+            obj.transform = [];
         end
         function obj = custom2beam(obj)
-            error('TODO');
+            % converts a custom loaded file to a beam format which stores data as a series of
+            % transforms of the generic beam file
+            
+            % as this is already completed in the unit cell function simply use it
+            addpath('unitCell');
+            unitObj = unitCell({'bcc'},obj);
+            unitObj.vertices = obj.vertices;
+            unitObj.connections = obj.struts;
+            
+            [vertices,connections,transform,~,~] = beamOut(unitObj);
+            rmpath('unitCell');
+            
+            obj.unitType = 'beam';
+            obj.transform = transform;
+            obj.vertices = vertices;
+            obj.struts = connections;
         end
         function obj = beam2facet(obj)
+            % not recommended but kept for compatibility represents all the facets in the 3d
+            % geometry all the time.
             error('TODO');
         end
         function obj = custom2facet(obj)
@@ -254,10 +285,26 @@ classdef PLG
                         p = plot3(points(:,1),points(:,2),points(:,3),'Color',colours(inc,:));
                         p.MarkerFaceColor = [0.9,0.5,0]; p.MarkerEdgeColor = 'none';
                     end
-                case 'facet'
-                    
+                case 'custom'
+                    f = figure;
+                    f.Units	= 'Normalized';
+                    f.Position = [0,0,1,1];
+                    f.Name = 'STL plotter';
+                    a = axes;
+                    a.View = [45,45];
+                    axis vis3d
+                    a.NextPlot='add';
+                    numStruts = length(obj.strutDiameter);
+                    if ~exist('colours','var')
+                        colours = repmat([0.3,0.3,0.3,0.5],numStruts,1);
+                    end
+                    for inc = 1:numStruts
+                        points = [obj.vertices(obj.struts(inc,1),:);obj.vertices(obj.struts(inc,2),:)];
+                        p = plot3(points(:,1),points(:,2),points(:,3),'Color',colours(inc,:));
+                        p.MarkerFaceColor = [0.9,0.5,0]; p.MarkerEdgeColor = 'none';
+                    end
                 otherwise
-                    error('Plotting not yet supported for this unitType')
+                    error('Plotting not yet supported for this unitType');
             end
             xlabel('x')
             ylabel('y')
@@ -498,18 +545,29 @@ classdef PLG
                       0       ,0      ,0,1];
             fullTrans = transX * transY * transZ;
             for inc = 1:size(obj.transform,1)
-                currentTransformFlat = obj.transform(inc,:);
-                currentFull = eye(4);
-                currentFull(1,1:3)=currentTransformFlat(1:3);
-                currentFull(2,1:3)=currentTransformFlat(4:6);
-                currentFull(3,1:3)=currentTransformFlat(7:9);
-                currentFull(4,1:3)=currentTransformFlat(10:12);
-                
-                newTrans = currentFull*fullTrans;
-                obj.transform(inc,:) = [newTrans(1,1:3),newTrans(2,1:3),newTrans(3,1:3),newTrans(4,1:3)];
+                squareTransform = flat2squareTransform(obj,inc);
+                newTrans = fullTrans*squareTransform;
+                obj = squareIntoFlatTransform(obj,newTrans,inc);
             end
         end
+        function squareTransform = flat2squareTransform(obj,index)
+            % takes the transform at row index and returns the square transform ready for use
+            currentTransformFlat = obj.transform(index,:);
+            squareTransform = eye(4);
+            squareTransform(1,1:3)=currentTransformFlat(1:3);
+            squareTransform(2,1:3)=currentTransformFlat(4:6);
+            squareTransform(3,1:3)=currentTransformFlat(7:9);
+            squareTransform(4,1:3)=currentTransformFlat(10:12);
+        end
+        function obj = squareIntoFlatTransform(obj,squareTransform,index)
+            % takes a square transform and flattens it then replaces the transform at the index row
+            obj.transform(index,:) = [squareTransform(1,1:3),...
+                squareTransform(2,1:3),...
+                squareTransform(3,1:3),...
+                squareTransform(4,1:3)];
+        end
     end
+                
     methods % save out methods
         function save(obj)
             % this overloads the save function and allows saving out in various
@@ -584,7 +642,20 @@ classdef PLG
             fclose(fid);
         end
         function saveCustom(obj,fullName)
-            % saves data to an excel compatible format
+            % saves data to a csv file with the .custom extension usefull as a beam model input to
+            % simulations
+            switch obj.unitType
+                case 'beam'
+                    % convert to custom
+                    obj = beam2custom(obj);
+                case 'custom'
+                    % ready to save
+                otherwise
+                    error('can not save out with this unit type: %s',obj.unitType);
+            end
+            obj = cleanLattice(obj);
+            
+            % write out the data
             numNodes=size(obj.vertices,1);
             numLinks=size(obj.struts,1);
             
