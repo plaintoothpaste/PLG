@@ -99,25 +99,15 @@ classdef PLG
             unitObj = unitCell(unitNames,obj);
             switch type
                 case 'beam'
-                    [vertices,connections,transform,name,type] = beamOut(unitObj);
+                    [obj.vertices,obj.struts,obj.transform,obj.unitName,obj.unitType] = beamOut(unitObj);
                 case 'unit'
-                    [vertices,connections,transform,name,type] = unitOut(unitObj);
+                    [obj.vertices,obj.struts,obj.transform,obj.unitName,obj.unitType] = unitOut(unitObj);
                 case 'facet'
-                    [vertices,connections,transform,name,type] = facetOut(unitObj);
+                    [obj.vertices,obj.struts,obj.transform,obj.unitName,obj.unitType] = facetOut(unitObj);
                 otherwise
                     error('not a suitable type');
             end
             rmpath('unitCell');
-            
-            % place onto object
-            obj.unitType = type;
-            obj.transform = transform;
-            obj.vertices = vertices;
-            obj.struts = connections;
-            obj.unitName = name;
-            
-            % scale the unit cell to the corrent size
-            obj = scale(obj,obj.unitSize(1),obj.unitSize(2),obj.unitSize(3));
         end
         function obj = cellReplication(obj)
             % if unitType is a beam it will replicate transformation if it is a facet type it will
@@ -176,15 +166,16 @@ classdef PLG
                     obj.transform = obj.transform(I,:);
                 case 'custom'
                     % tolerance - get the shortest strut and divide by 1000
+                    numVerts = size(obj.vertices,1);
                     verts1 = obj.vertices(obj.struts(:,1),:);
                     verts2 = obj.vertices(obj.struts(:,2),:);
                     lengthVerts = sum(sqrt((verts1-verts2).^2),2);
-                    obj.tolerance = min(lengthVerts)/15;
+                    obj.tolerance = min(lengthVerts)/20;
                     % duplicate vertices
                     [obj.vertices,i,indexn]=uniquetol(obj.vertices,obj.tolerance,'ByRows',1,'DataScale',1);
                     if ~isempty(obj.sphereDiameter)
                         if numel(obj.sphereDiameter)==1
-                            obj.sphereDiameter = ones(size(verts1,1),1)*obj.sphereDiameter;
+                            obj.sphereDiameter = ones(numVerts,1)*obj.sphereDiameter;
                         end
                         obj.sphereDiameter = obj.sphereDiameter(i);
                     end
@@ -607,7 +598,6 @@ classdef PLG
                 obj.sphereDiameter = data(3:numNodes+2,4);
             end
         end
-        
     end           
     methods % save out methods
         function save(obj)
@@ -632,10 +622,8 @@ classdef PLG
             % save out an stl file from the custom or facet unit type.
             switch obj.unitType
                 case 'beam'
-                    oldType = 'beam';
                     obj = beam2custom(obj);
                     writeCustomType(obj,fullName);
-                    obj = custom2beam(obj);
                 case 'custom'
                     writeCustomType(obj,fullName);
                 case 'facet'
@@ -686,7 +674,7 @@ classdef PLG
                 case 'custom'
                     % ready to save
                 otherwise
-                    error('can not save out with this unit type: %s',obj.unitType);
+                    error('can not save out a custom file with this unit type: %s',obj.unitType);
             end
             obj = cleanLattice(obj);
             
@@ -705,7 +693,7 @@ classdef PLG
         function save3mf(obj,fullName)
             % safe a PLG lattice as a 3D manufacturing format file
             if ~strcmp(obj.unitType, 'beam')
-                error('only beam unit type can be saved as a 3mf file please use stl or convert to beam');
+                error('only beam type can presently be saved as a 3mf file');
             end
             
             %create an object to hold xml
@@ -745,7 +733,7 @@ classdef PLG
             copyfile('other/.rels','_rels/.rels');
             copyfile('other/[Content_Types].xml','[Content_Types].xml');
             zip('out',{'_rels','3D','[Content_Types].xml'});
-            movefile('out.zip',[fullName,'.3mf'],'f');
+            movefile('out.zip',fullName,'f');
             
             % delete the unzipped files
             delete('[Content_Types].xml');
@@ -920,7 +908,7 @@ classdef PLG
         end
         function threeMfDoc = threeMfUnitObj(obj,threeMfDoc,resourcesNode,idNum)
             % write a single unit cell as an object
-            radius = obj.strutDiameter/2;
+            radius = 0.5; % as the transform contains the scaling for the strut diameter
             numLinks = size(obj.struts,1);
             
             % setup the object
@@ -1060,10 +1048,6 @@ classdef PLG
                 str(end) = [];
                 componentNode.setAttribute('transform',str);
                 componentsNode.appendChild(componentNode);
-            end
-            
-            if ~obj.sphereAddition
-                return
             end
         end
         function threeMfDoc = threeMfreplicate_Ball(obj,threeMfDoc,resourcesNode,idRef,newId)
