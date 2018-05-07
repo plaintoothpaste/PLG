@@ -809,7 +809,7 @@ classdef PLG
                     facet_a=point1;
                     facet_b=datOut(1,:);
                     facet_c=datOut(2,:);
-                    writeSingleFace(obj,fid,facet_a,facet_b,facet_c);
+                    writeSingleFace(obj,fid,facet_a,facet_c,facet_b);
                     
                     % end of strut at point 2
                     datOut = circshift(vert2end,j);
@@ -824,7 +824,7 @@ classdef PLG
                     facet_a=datOut1(1,:);
                     facet_b=datOut2(1,:);
                     facet_c=datOut2(2,:);
-                    writeSingleFace(obj,fid,facet_a,facet_b,facet_c);
+                    writeSingleFace(obj,fid,facet_a,facet_c,facet_b);
                     
                     % along direction point 2 to point 1
                     datOut1 = circshift(vert1end,j);
