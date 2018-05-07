@@ -13,7 +13,8 @@ classdef unitCell
     
     methods
         function obj = unitCell(names,plgObj)
-            %UNITCELL Constructs this class as loads a unit cell
+            %UNITCELL Constructs this class as loads a unit cell and then
+            %scales is
             obj.plgObj = plgObj;
             for inc = 1:length(names)
                 obj = load(obj,names{inc});
@@ -34,7 +35,9 @@ classdef unitCell
                 error('diameter and resolution must be supplied');
             end
             if numel(obj.plgObj.strutDiameter)==1
-                obj.plgObj.strutDiameter = ones(size(obj.connections,1),1)*obj.plgObj.strutDiameter;
+                strutDiameter = ones(size(obj.connections,1),1)*obj.plgObj.strutDiameter;
+            else
+                strutDiameter = obj.plgObj.strutDiameter;
             end
             connections = [1,2];
             transform = [];
@@ -58,14 +61,14 @@ classdef unitCell
                 end
                 v = cross(crosser,u);
                 v = v/norm(v);
-                offset = obj.plgObj.strutDiameter(inc)/2*v;
+                offset = strutDiameter(inc)/2*v;
                 point3 = point1+offset;
                 
                 vector = point3-point1;
                 w = vector/norm(vector);
                 x = cross(w,u);
                 x = x/norm(x);
-                offset = obj.plgObj.strutDiameter(inc)/2*x;
+                offset = strutDiameter(inc)/2*x;
                 point4 = point2-offset;
                 
                 newPoints = [point1,1;point2,1;point3,1;point4,1;];
@@ -124,11 +127,6 @@ classdef unitCell
                 % first load
                 obj.unitType = xmlStructure.Children(strutLoc).Attributes(2).Value;
             end
-        end
-        function obj = scale(obj)
-            obj.vertices(:,1) = obj.vertices(:,1)*obj.plgObj.unitSize(1);
-            obj.vertices(:,2) = obj.vertices(:,2)*obj.plgObj.unitSize(2);
-            obj.vertices(:,3) = obj.vertices(:,3)*obj.plgObj.unitSize(3);
         end
     end
     methods (Static) % xml loading functions

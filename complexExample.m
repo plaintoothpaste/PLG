@@ -52,7 +52,7 @@ objY = translate(objY,cornerSpacing,0,0);
 
 % along z rotate x by 90
 objZ = rotate(objX,0,90,0);
-objZ = translate(objZ,0,0,cornerSpacing);
+objZ = translate(objZ,cornerSpacing,0,0);
 %plot(objX+objY+objZ);
 
 

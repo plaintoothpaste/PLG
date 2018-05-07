@@ -31,10 +31,10 @@ classdef PLG
                           'custom','standard beam output of PLG';...
                           'csv','manualy defined beam model';...
                           'xlsx','manualy defined beam model'};
-        saveExtensions = {'stl', 'binary facet representation (compatibility)';...
-                          '3mf', 'tesselated facet file (recommended)';...
-                          'custom', 'beam output method (simulation)';...
-                          'inp', 'Abaqus input file (TODO)'};
+        saveExtensions = {'*.stl', 'binary facet representation (compatibility)';...
+                          '*.3mf', 'tesselated facet file (recommended)';...
+                          '*.custom', 'beam output method (simulation)';...
+                          '*.inp', 'Abaqus input file (TODO)'};
                       
         tolerance; % defined as 1/100 of the shortest length present
         dx; % length of a strut
@@ -64,15 +64,17 @@ classdef PLG
             % set a value in the PLG that can be edited
             allowable={'resolution','strutDiameter','sphereAddition','sphereResolution','sphereDiameter',...
                 'unitSize','replications','origin'};
-            dataType = {'double','double','logical','double','double','double','double','double'};
-            dataSize = {[1,1],[1,1],[1,1],[1,1],[1,1],[1,3],[1,3],[1,3]};
+            classType = {'double','double','logical','double','double','double','double','double'};
+            attribute = {{'scalar','nonempty'},{'scalar','nonempty'},{'scalar','nonempty'},...
+                {'scalar','nonempty'},{'scalar','nonempty'},{'size',[1,3],'nonempty'},...
+                {'size',[1,3],'nonempty'},{'size',[1,3],'nonempty'}};
             % setup parser
             p = inputParser();
             for inc = 1:length(allowable)
                 name = allowable{inc};
-                class = dataType{inc};
-                sizer = dataSize{inc};
-                f = @(x) validateattributes(x,{class},{'size', sizer,'nonempty'});
+                class = classType{inc};
+                attr = attribute{inc};
+                f = @(x) validateattributes(x,{class},attr);
                 addParameter(p,name,[],f)
             end
             parse(p,varargin{:});
@@ -95,7 +97,6 @@ classdef PLG
             
             addpath('unitCell');
             unitObj = unitCell(unitNames,obj);
-            obj = scale(obj);
             switch type
                 case 'beam'
                     [vertices,connections,transform,name,type] = beamOut(unitObj);
@@ -114,6 +115,9 @@ classdef PLG
             obj.vertices = vertices;
             obj.struts = connections;
             obj.unitName = name;
+            
+            % scale the unit cell to the corrent size
+            obj = scale(obj,obj.unitSize(1),obj.unitSize(2),obj.unitSize(3));
         end
         function obj = cellReplication(obj)
             % if unitType is a beam it will replicate transformation if it is a facet type it will
@@ -312,6 +316,17 @@ classdef PLG
         end
     end
     methods % lattice manipulations
+        function obj = scale(obj,sx,sy,sz)
+            %scales a lattice in space
+            switch obj.unitType
+                case 'beam'
+                    obj = beamScale(obj,sx,sy,sz);
+                case 'custom'
+                    obj = standardScale(obj,sx,sy,sz);
+                case 'facet'
+                    obj = standardScale(obj,sx,sy,sz);
+            end
+        end
         function obj = translate(obj,x,y,z)
             %translates a lattice in space
             switch obj.unitType
@@ -333,9 +348,9 @@ classdef PLG
                 case 'beam'
                     obj = beamRotate(obj,wx,wy,wz);
                 case 'custom'
-                    
+                    error('TODO')
                 case 'facet'
-                    
+                    error('TODO')
             end
         end
         function obj = plus(obj,obj1)
@@ -359,6 +374,78 @@ classdef PLG
             
             % remove any matching struts/transforms
             obj = cleanLattice(obj);
+        end
+    end
+    methods (Access=protected) % sub lattice manipulation codes
+        function obj = standardScale(obj,sx,sy,sz)
+            obj.vertices(:,1) = obj.vertices(:,1)*sx;
+            obj.vertices(:,2) = obj.vertices(:,2)*sy;
+            obj.vertices(:,3) = obj.vertices(:,3)*sz;
+        end
+        function obj = beamScale(obj,sx,sy,sz)
+            scaler = [sx,0 ,0 ,0;...
+                      0 ,sy,0 ,0;...
+                      0 ,0 ,sz,0;...
+                      0 ,0 ,0 ,1];
+            for inc = 1:size(obj.transform,1)
+                squareTransform = flat2squareTransform(obj,inc);
+                newTrans = squareTransform*scaler;
+                obj = squareIntoFlatTransform(obj,newTrans,inc);
+            end
+        end
+        
+        function obj = standardTranslate(obj,x,y,z)
+            obj.vertices(:,1) = obj.vertices(:,1)+x;
+            obj.vertices(:,2) = obj.vertices(:,2)+y;
+            obj.vertices(:,3) = obj.vertices(:,3)+z;
+        end
+        function obj = beamTranslate(obj,x,y,z)
+            obj.transform(:,10) = obj.transform(:,10)+x;
+            obj.transform(:,11) = obj.transform(:,11)+y;
+            obj.transform(:,12) = obj.transform(:,12)+z;
+        end
+        
+        function obj = beamRotate(obj,wx,wy,wz)
+            transX = [1,0       ,0      ,0;...
+                      0,cos(wx) ,sin(wx),0;...
+                      0,-sin(wx),cos(wx),0;...
+                      0,0       ,0      ,1];
+            transY = [cos(wy),0,sin(wy),0;...
+                      0      ,1,0       ,0;...
+                      -sin(wy),0,cos(wy) ,0;...
+                      0      ,0,0       ,1];
+            transZ = [cos(wz) ,sin(wz),0,0;...
+                      -sin(wz),cos(wz),0,0;...
+                      0       ,0      ,1,0;...
+                      0       ,0      ,0,1];
+            fullTrans = transX * transY * transZ;
+            for inc = 1:size(obj.transform,1)
+                squareTransform = flat2squareTransform(obj,inc);
+                newTrans = squareTransform*fullTrans;
+                obj = squareIntoFlatTransform(obj,newTrans,inc);
+                % debug
+                line = [obj.vertices,[0;0]];
+                xnew = line*newTrans;
+                xold = line*squareTransform;
+            end
+            
+        end
+        
+        function squareTransform = flat2squareTransform(obj,index)
+            % takes the transform at row index and returns the square transform ready for use
+            currentTransformFlat = obj.transform(index,:);
+            squareTransform = eye(4);
+            squareTransform(1,1:3)=currentTransformFlat(1:3);
+            squareTransform(2,1:3)=currentTransformFlat(4:6);
+            squareTransform(3,1:3)=currentTransformFlat(7:9);
+            squareTransform(4,1:3)=currentTransformFlat(10:12);
+        end
+        function obj = squareIntoFlatTransform(obj,squareTransform,index)
+            % takes a square transform and flattens it then replaces the transform at the index row
+            obj.transform(index,:) = [squareTransform(1,1:3),...
+                squareTransform(2,1:3),...
+                squareTransform(3,1:3),...
+                squareTransform(4,1:3)];
         end
     end
     methods % stats and advanced
@@ -520,54 +607,8 @@ classdef PLG
                 obj.sphereDiameter = data(3:numNodes+2,4);
             end
         end
-        function obj = standardTranslate(obj,x,y,z)
-            obj.vertices(:,1) = obj.vertices(:,1)+x;
-            obj.vertices(:,2) = obj.vertices(:,2)+y;
-            obj.vertices(:,3) = obj.vertices(:,3)+z;
-        end
-        function obj = beamTranslate(obj,x,y,z)
-            obj.transform(:,10) = obj.transform(:,10)+x;
-            obj.transform(:,11) = obj.transform(:,11)+y;
-            obj.transform(:,12) = obj.transform(:,12)+z;
-        end
-        function obj = beamRotate(obj,wx,wy,wz)
-            transX = [1,0       ,0      ,0;...
-                      0,cos(wx) ,sin(wx),0;...
-                      0,-sin(wx),cos(wx),0;...
-                      0,0       ,0      ,1];
-            transY = [cos(wy),0,-sin(wy),0;...
-                      0      ,1,0       ,0;...
-                      sin(wy),0,cos(wy) ,0;...
-                      0      ,0,0       ,1];
-            transZ = [cos(wz) ,sin(wz),0,0;...
-                      -sin(wz),cos(wz),0,0;...
-                      0       ,0      ,1,0;...
-                      0       ,0      ,0,1];
-            fullTrans = transX * transY * transZ;
-            for inc = 1:size(obj.transform,1)
-                squareTransform = flat2squareTransform(obj,inc);
-                newTrans = fullTrans*squareTransform;
-                obj = squareIntoFlatTransform(obj,newTrans,inc);
-            end
-        end
-        function squareTransform = flat2squareTransform(obj,index)
-            % takes the transform at row index and returns the square transform ready for use
-            currentTransformFlat = obj.transform(index,:);
-            squareTransform = eye(4);
-            squareTransform(1,1:3)=currentTransformFlat(1:3);
-            squareTransform(2,1:3)=currentTransformFlat(4:6);
-            squareTransform(3,1:3)=currentTransformFlat(7:9);
-            squareTransform(4,1:3)=currentTransformFlat(10:12);
-        end
-        function obj = squareIntoFlatTransform(obj,squareTransform,index)
-            % takes a square transform and flattens it then replaces the transform at the index row
-            obj.transform(index,:) = [squareTransform(1,1:3),...
-                squareTransform(2,1:3),...
-                squareTransform(3,1:3),...
-                squareTransform(4,1:3)];
-        end
-    end
-                
+        
+    end           
     methods % save out methods
         function save(obj)
             % this overloads the save function and allows saving out in various
@@ -588,24 +629,18 @@ classdef PLG
             end
         end
         function saveStl(obj,fullName)
-            numFacets = obj.resolution*4;%number of facets created for one strut
-            numLinks = size(obj.struts,1);
-            numVertices = size(obj.vertices,1);
-            
-            totalFacetsNoBall = numFacets*numLinks;
-            totalFacetsWithBall = totalFacetsNoBall + 2*obj.sphereResolution*(obj.sphereResolution-1)*numVertices;
-            
-            fid=fopen(fullName,'w');
-            fprintf(fid, '%-80s', 'fast stl generator'); %binary write information
-            
-            if ~isempty(obj.sphereDiameter)
-                fwrite(fid,uint32(totalFacetsWithBall),'uint32'); %stl binary header file contains the total number of facets in the stl file
-                fid = ballCreate(obj,fid);
-            else
-                fwrite(fid,uint32(totalFacetsNoBall),'uint32'); %stl binary header file contains the total number of facets in the stl file
+            % save out an stl file from the custom or facet unit type.
+            switch obj.unitType
+                case 'beam'
+                    oldType = 'beam';
+                    obj = beam2custom(obj);
+                    writeCustomType(obj,fullName);
+                    obj = custom2beam(obj);
+                case 'custom'
+                    writeCustomType(obj,fullName);
+                case 'facet'
+                    obj = standardScale(obj,sx,sy,sz);
             end
-            fid = faceCreate(obj,fid);
-            fclose(fid);
         end
         function saveAbaqus(obj,fullName)
             % saves out as a abaqus beam model that is used as an input
@@ -719,10 +754,29 @@ classdef PLG
         end
     end
     methods % stl format
-        function fid = faceCreate(obj,fid)
+        function writeCustomType(obj,fullName)
+            % write out a stl file using the custom plg type
+            % setup and stl header inforation
+            numFacets = obj.resolution*4;%number of facets created for one strut
+            numLinks = size(obj.struts,1);
+            numVertices = size(obj.vertices,1);
+            if isscalar(obj.strutDiameter)
+                obj.strutDiameter = ones(numLinks,1)*obj.strutDiameter;
+            end
+            if isscalar(obj.sphereDiameter)
+                obj.sphereDiameter = ones(numVertices,1)*obj.sphereDiameter;
+            end
+            totalFacetsNoBall = numFacets*numLinks;
+            totalFacetsWithBall = totalFacetsNoBall + 2*obj.sphereResolution*(obj.sphereResolution-1)*numVertices;
+            fid=fopen(fullName,'w');
+            fprintf(fid, '%-80s', 'fast stl generator'); %binary write information
+            if ~isempty(obj.sphereDiameter)
+                fwrite(fid,uint32(totalFacetsWithBall),'uint32'); %stl binary header file contains the total number of facets in the stl file
+            else
+                fwrite(fid,uint32(totalFacetsNoBall),'uint32'); %stl binary header file contains the total number of facets in the stl file
+            end
+            %write out the truts
             radius = obj.strutDiameter/2;
-            numLinks = length(obj.struts);
-            
             % calculate points on each facet then write said points to file
             % in the correct order
             for i=1:numLinks
@@ -737,7 +791,6 @@ classdef PLG
                     v1 = v1/norm(v1);
                 end
                 offset = radius(i)*v1;
-                
                 vert1end = zeros(obj.resolution,3);
                 vert2end = zeros(obj.resolution,3);
                 for j=1:obj.resolution
@@ -749,64 +802,49 @@ classdef PLG
                     vert2end(j,:)=absolutePointRotation+point2;
                 end
                 % scatter3(vertOut(:,1),vertOut(:,2),vertOut(:,3)) % scatter
-                %% join struts
+                % join struts
                 for j=1:obj.resolution
                     % end of strut at point 1
                     datOut = circshift(vert1end,j);
                     facet_a=point1;
                     facet_b=datOut(1,:);
                     facet_c=datOut(2,:);
-                    normal=cross(facet_b-facet_a,facet_a-facet_a);
-                    fwrite(fid,normal,'float32');           % write normal vector floating point numbers
-                    fwrite(fid,facet_c,'float32');   % first vertex (x,y,z)
-                    fwrite(fid,facet_b,'float32');   % second vertex
-                    fwrite(fid,facet_a,'float32');   % Third vertex
-                    fwrite(fid,0,'uint16','l');
+                    writeSingleFace(obj,fid,facet_a,facet_b,facet_c);
+                    
                     % end of strut at point 2
                     datOut = circshift(vert2end,j);
                     facet_a=point2;
                     facet_b=datOut(1,:);
                     facet_c=datOut(2,:);
-                    normal=cross(facet_b-facet_a,facet_a-facet_a);
-                    fwrite(fid,normal,'float32');           % write normal vector floating point numbers
-                    fwrite(fid,facet_c,'float32');   % first vertex (x,y,z)
-                    fwrite(fid,facet_b,'float32');   % second vertex
-                    fwrite(fid,facet_a,'float32');   % Third vertex
-                    fwrite(fid,0,'uint16','l');
+                    writeSingleFace(obj,fid,facet_a,facet_b,facet_c);
+                    
                     % along direction point 1 to point 2
                     datOut1 = circshift(vert1end,j);
                     datOut2 = circshift(vert2end,j);
                     facet_a=datOut1(1,:);
                     facet_b=datOut2(1,:);
                     facet_c=datOut2(2,:);
-                    normal=cross(facet_b-facet_a,facet_a-facet_a);
-                    fwrite(fid,normal,'float32');           % write normal vector floating point numbers
-                    fwrite(fid,facet_c,'float32');   % first vertex (x,y,z)
-                    fwrite(fid,facet_b,'float32');   % second vertex
-                    fwrite(fid,facet_a,'float32');   % Third vertex
-                    fwrite(fid,0,'uint16','l');
+                    writeSingleFace(obj,fid,facet_a,facet_b,facet_c);
+                    
                     % along direction point 2 to point 1
                     datOut1 = circshift(vert1end,j);
                     datOut2 = circshift(vert2end,j);
                     facet_a=datOut1(1,:);
                     facet_b=datOut1(2,:);
                     facet_c=datOut2(2,:);
-                    normal=cross(facet_b-facet_a,facet_a-facet_a);
-                    fwrite(fid,normal,'float32');           % write normal vector floating point numbers
-                    fwrite(fid,facet_a,'float32');   % first vertex (x,y,z)
-                    fwrite(fid,facet_b,'float32');   % second vertex
-                    fwrite(fid,facet_c,'float32');   % Third vertex
-                    fwrite(fid,0,'uint16','l');
+                    writeSingleFace(obj,fid,facet_a,facet_b,facet_c);
                 end
             end
-        end
-        function fid = ballCreate(obj,fid)
+            if isempty(obj.sphereDiameter)
+                fclose(fid);
+                return;
+            end
+            % write the spheres to file
             [x,y,z]=sphere(obj.sphereResolution); %create sphere with higher accuracy
             ball.struts= convhull([x(:), y(:), z(:)]); %create triangle links
             sizer = size(ball.struts,1);
             ball.vertices=[x(:),y(:),z(:)]; %store the points
-            
-            for i=1:size(obj.vertices,1)
+            for i=1:numVertices
                 offset=ball.vertices*obj.sphereDiameter(i)/2;
                 target=[offset(:,1)+obj.vertices(i,1),offset(:,2)+obj.vertices(i,2),offset(:,3)+obj.vertices(i,3)];
                 for j=1:sizer
@@ -814,15 +852,18 @@ classdef PLG
                     facet_a=target(ball.struts(j,1),:);
                     facet_b=target(ball.struts(j,2),:);
                     facet_c=target(ball.struts(j,3),:);
-                    normal=cross(facet_b-facet_a,facet_c-facet_a);
-                    %write values
-                    fwrite(fid,normal,'float32');           % write normal vector floating point numbers
-                    fwrite(fid,facet_a,'float32');   % first vertex (x,y,z)
-                    fwrite(fid,facet_b,'float32');   % second vertex
-                    fwrite(fid,facet_c,'float32');   % Third vertex
-                    fwrite(fid,32767,'uint16','l');
+                    writeSingleFace(obj,fid,facet_a,facet_b,facet_c);
                 end
             end
+            fclose(fid);
+        end
+        function writeSingleFace(obj,fid,v1,v2,v3)
+            normal=cross(v2-v1,v3-v1);
+            fwrite(fid,normal,'float32');           % write normal vector floating point numbers
+            fwrite(fid,v1,'float32');   % first vertex (x,y,z)
+            fwrite(fid,v2,'float32');   % second vertex
+            fwrite(fid,v3,'float32');   % Third vertex
+            fwrite(fid,0,'uint16','l');
         end
     end
     methods % 3mf format
