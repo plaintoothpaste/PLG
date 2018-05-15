@@ -225,6 +225,7 @@ classdef PLG
             
             % as this is already completed in the unit cell function simply use it
             addpath('unitCell');
+            obj.unitSize = [1,1,1];
             unitObj = unitCell({'bcc'},obj);
             unitObj.vertices = obj.vertices;
             unitObj.connections = obj.struts;
@@ -833,14 +834,16 @@ classdef PLG
             sizer = size(ball.struts,1);
             ball.vertices=[x(:),y(:),z(:)]; %store the points
             for i=1:numVertices
-                offset=ball.vertices*obj.sphereDiameter(i)/2;
-                target=[offset(:,1)+obj.vertices(i,1),offset(:,2)+obj.vertices(i,2),offset(:,3)+obj.vertices(i,3)];
-                for j=1:sizer
-                    %get values first end
-                    facet_a=target(ball.struts(j,1),:);
-                    facet_b=target(ball.struts(j,2),:);
-                    facet_c=target(ball.struts(j,3),:);
-                    writeSingleFace(obj,fid,facet_a,facet_b,facet_c);
+                if obj.sphereDiameter(i)~=0
+                    offset=ball.vertices*obj.sphereDiameter(i)/2;
+                    target=[offset(:,1)+obj.vertices(i,1),offset(:,2)+obj.vertices(i,2),offset(:,3)+obj.vertices(i,3)];
+                    for j=1:sizer
+                        %get values first end
+                        facet_a=target(ball.struts(j,1),:);
+                        facet_b=target(ball.struts(j,2),:);
+                        facet_c=target(ball.struts(j,3),:);
+                        writeSingleFace(obj,fid,facet_a,facet_b,facet_c);
+                    end
                 end
             end
             fclose(fid);
@@ -872,7 +875,7 @@ classdef PLG
             [x,y,z]=sphere(obj.sphereResolution); %create sphere with higher accuracy
             ball.struts= convhull([x(:), y(:), z(:)]); %create triangle links
             ball.vertices=[x(:),y(:),z(:)]; %store the points
-            ball.vertices = ball.vertices*obj.sphereDiameter/2;
+            ball.vertices = ball.vertices*0.5;
             for inc = 1:size(ball.vertices,1)
                 vertexNode = threeMfDoc.createElement('vertex');
               
@@ -1061,26 +1064,38 @@ classdef PLG
             
             componentsNode = threeMfDoc.createElement('components');
             objNode.appendChild(componentsNode);
-            
             numTransform =size(obj.transform,1);
+            % from all the transforms determine the vertices
             verts = [];
             points = [obj.vertices,[1;1]];
             for inc = 1:numTransform
-                currentTransform = obj.transform(inc,:);
-                trans = eye(4);
-                trans(1,1:3) = currentTransform(1:3);
-                trans(2,1:3) = currentTransform(4:6);
-                trans(3,1:3) = currentTransform(7:9);
-                trans(4,1:3) = currentTransform(10:12);
-                newVerts = points*trans;
+                squareTransform = flat2squareTransform(obj,inc);
+                newVerts = points*squareTransform;
                 verts = [verts;newVerts(:,1:3)];
             end
             verts = unique(verts,'rows');
+            % for each vertex write out a transform
             for inc = 1:size(verts,1)
                 componentNode = threeMfDoc.createElement('component');
                 componentNode.setAttribute('objectid',num2str(idRef));
+                x = verts(inc,1);
+                y = verts(inc,2);
+                z = verts(inc,3);
+                scaler = obj.strutDiameter(1)/2;
                 
-                str = sprintf('1 0 0 0 1 0 0 0 1 %5.5f %5.5f %5.5f', verts(inc,1), verts(inc,2),verts(inc,3));
+                % scale matrix
+                scaler = [scaler,0 ,0 ,0;...
+                          0 ,scaler,0 ,0;...
+                          0 ,0 ,scaler,0;...
+                          0 ,0 ,0 ,1];
+                % translate matrix
+                translateMatrix = [1,0 ,0 ,0;...
+                                   0 ,1,0 ,0;...
+                                   0 ,0 ,1,0;...
+                                   x ,y ,z,1];
+                fullMatrix = scaler*translateMatrix;
+                fullMatrix(:,4) = []; % remove values not written to 3mf file
+                str = sprintf('%5.5f ', fullMatrix');
                 componentNode.setAttribute('transform',str);
                 componentsNode.appendChild(componentNode);
             end

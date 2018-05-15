@@ -54,3 +54,28 @@ the initial call determines which vertices to add as supports based on incline a
 
 # SubClass splitStrut
 Enables splitting of a bad custom file where beam do interesect but this is not present in the file. splitStruts will identify these and split the beams in two.
+
+# plgBatch
+The plgBatch class enables the combination of multiple parameters to generate a full design of experiments.
+The test class framework is used because it provides a simple opportunity to define all the parameters required
+
+## how to use plgBatch
+1. starting from top to bottom set all properties. The properties under **TestParameter** will undergo a full factorial design.
+2. Scroll down to method and move the curser to the desired output style:
+  * runAllCombinations - runs through every single permutation of everything in **TestParameter**.
+  * squareUnitCell - uses only unitSizeX for all unit cell dimensions runs through all other **TestParameter**.
+  * squareLattice - uses only unitSizeX and repsX
+3. click on run current test in the menu bar (ctrl+enter)
+4. Be patient matlab internally calculates the full factorial before begining to generate files this may take a while depending on the number of outputs
+
+## make your own generation function
+Generating your own function may be the most usefull for your use case. 
+1. create a function with the following format:
+         __function functionNameHere(obj,desiredParameters)__
+  * functionNameHere - can be anything not already used and can not be plgBatch or PLG or any PLG functions you plan to call
+  * obj - the first input must be the class object itself. this is used to access any constant properties eg: obj.outputFolder
+  * desiredParameters - as seperate inputs place any variables in **TestParameter** that you wish to use. New parameters can also be added.
+2. follow above instructions
+
+**note:** depending on the number of inputs there can be a big lag between hitting run and the script generating data.
+Therefore it is recommended that you test a single output with a script before placing in this class.

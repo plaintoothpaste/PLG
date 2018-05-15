@@ -25,6 +25,9 @@ classdef addSupport < PLG
         end
         function obj = padSupport(obj,pad,dia)
             % adds a set distance to all nodes at zmin similiar to real pin supports
+            if ~strcmp(obj.unitType,'custom')
+                error('only a custom file can have supports added');
+            end
             minZ = min(obj.vertices(:,3));
             newMinZ = minZ-pad;
             
