@@ -834,16 +834,14 @@ classdef PLG
             sizer = size(ball.struts,1);
             ball.vertices=[x(:),y(:),z(:)]; %store the points
             for i=1:numVertices
-                if obj.sphereDiameter(i)~=0
-                    offset=ball.vertices*obj.sphereDiameter(i)/2;
-                    target=[offset(:,1)+obj.vertices(i,1),offset(:,2)+obj.vertices(i,2),offset(:,3)+obj.vertices(i,3)];
-                    for j=1:sizer
-                        %get values first end
-                        facet_a=target(ball.struts(j,1),:);
-                        facet_b=target(ball.struts(j,2),:);
-                        facet_c=target(ball.struts(j,3),:);
-                        writeSingleFace(obj,fid,facet_a,facet_b,facet_c);
-                    end
+                offset=ball.vertices*obj.sphereDiameter(i)/2;
+                target=[offset(:,1)+obj.vertices(i,1),offset(:,2)+obj.vertices(i,2),offset(:,3)+obj.vertices(i,3)];
+                for j=1:sizer
+                    %get values first end
+                    facet_a=target(ball.struts(j,1),:);
+                    facet_b=target(ball.struts(j,2),:);
+                    facet_c=target(ball.struts(j,3),:);
+                    writeSingleFace(obj,fid,facet_a,facet_b,facet_c);
                 end
             end
             fclose(fid);
@@ -1081,7 +1079,7 @@ classdef PLG
                 x = verts(inc,1);
                 y = verts(inc,2);
                 z = verts(inc,3);
-                scaler = obj.strutDiameter(1)/2;
+                scaler = obj.strutDiameter(inc)/2;
                 
                 % scale matrix
                 scaler = [scaler,0 ,0 ,0;...
