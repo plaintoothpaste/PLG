@@ -10,24 +10,17 @@ classdef addSupport < PLG
     end
     
     methods
-        function obj = addSupport(file,dia,incline,penetrationPercentage)
+        function obj = addSupport(file,diaStrut,diaSphere,incline,penetrationPercentage)
             % initiate the PLG class
             obj = obj@PLG(file);
-            
-            if ~strcmp(obj.unitType,'custom')
-                error('support can only be added to custom files')
-            end
             % find nodes that are to be supported
             vertsNeedSupport = smartBaseDectection(obj,incline,penetrationPercentage);
             
             % add support elements
-            obj = baseAddition(obj,dia,vertsNeedSupport);
+            obj = baseAddition(obj,diaStrut,diaSphere,vertsNeedSupport);
         end
-        function obj = padSupport(obj,pad,dia)
+        function obj = padSupport(obj,pad,diaStrut,diaSphere)
             % adds a set distance to all nodes at zmin similiar to real pin supports
-            if ~strcmp(obj.unitType,'custom')
-                error('only a custom file can have supports added');
-            end
             minZ = min(obj.vertices(:,3));
             newMinZ = minZ-pad;
             
@@ -41,9 +34,9 @@ classdef addSupport < PLG
             for inc = 1:numCanNotMoveVerts
                 attach = obj.vertices(canNotMoveVerts(inc),:); attach(3) = newMinZ;
                 obj.vertices(end+1,:) = attach;
-                obj.sphereDiameter(end+1) = dia;
+                obj.sphereDiameter(end+1) = diaSphere;
                 obj.struts(end+1,:) = [canNotMoveVerts(inc),size(obj.vertices,1)];
-                obj.strutDiameter(end+1) = dia;
+                obj.strutDiameter(end+1) = diaStrut;
             end
         end
         function plot(obj)
@@ -56,11 +49,6 @@ classdef addSupport < PLG
             
             % has a bug where the original vertice(s) at zmin will also have all their struts
             % coloured
-        end
-        function save(obj,resDia,resBall)
-            % add resolution as there will be none from the custom load
-            obj = modResolution(obj,resDia,resBall); % calling PLG method
-            save@PLG(obj)
         end
     end
     methods (Access=protected)
@@ -88,7 +76,7 @@ classdef addSupport < PLG
                 end
             end
         end
-        function obj = baseAddition(obj,dia,vertsNeedSupport)
+        function obj = baseAddition(obj,diaStrut,diaSphere,vertsNeedSupport)
             % add elements to the lower nodes that require them and replace supportVertsInd with the
             % list of nodes at zmin that can be extended
             numsupportVertsInd = length(vertsNeedSupport);
@@ -112,8 +100,8 @@ classdef addSupport < PLG
                     
                     obj.struts(end+1,:) = [vertsNeedSupport(inc),lengthVerts];
                     
-                    obj.sphereDiameter(end+1) = dia;
-                    obj.strutDiameter(end+1) = dia;
+                    obj.sphereDiameter(end+1) = diaSphere;
+                    obj.strutDiameter(end+1) = diaStrut;
                 end
             end
         end

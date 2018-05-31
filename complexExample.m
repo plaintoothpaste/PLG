@@ -90,3 +90,10 @@ obj = objX+objY+objZ+cornerObj+diagXZ+diagYZ;
 obj = cleanLattice(obj);
 obj = set(obj,'sphereResolution',20);
 save3mf(obj,'complexLattice.3mf');
+saveCustom(obj,'complexLattice.custom');
+%% save out a version with support
+obj = addSupport('complexLattice.custom',diameter/4,0,10,0.1); % add support to all points above minZ to minz (that require it)
+obj = padSupport(obj,0.9,diameter/4,0); % extend/add support by a given length with a given strut and ball dia
+obj = set(obj,'sphereResolution',12);
+obj = set(obj,'resolution',20);
+save3mf(obj,'complexLatticeSupported.3mf');

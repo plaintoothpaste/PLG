@@ -393,11 +393,12 @@ classdef PLG
             numLinks = size(obj.struts,1);
             numVertices = size(obj.vertices,1);
             totalFacetsNoBall = numFacets*numLinks;
-            if obj.strutDiameter(1)==0
+            if all(obj.sphereDiameter==0) || ~obj.sphereAddition
                 % do not write spheres
                 totalFacets = totalFacetsNoBall;
             else
-                totalFacets = totalFacetsNoBall + 2*obj.sphereResolution*(obj.sphereResolution-1)*numVertices;
+                numSpheres = sum(obj.sphereDiameter~=0);
+                totalFacets = totalFacetsNoBall + 2*obj.sphereResolution*(obj.sphereResolution-1)*numSpheres;
             end
             %write the header
             fid=fopen(fullName,'w');
@@ -410,7 +411,7 @@ classdef PLG
                 writeSingleStrut(obj,fid,inc); % adds a single strut to the stl file
             end
             
-            if obj.strutDiameter(1)==0
+            if all(obj.sphereDiameter==0) || ~obj.sphereAddition
                 fclose(fid);
                 return;
             end
@@ -420,7 +421,9 @@ classdef PLG
             sizer = size(ball.struts,1);
             ball.vertices=[x(:),y(:),z(:)]; %store the points
             for inc = 1:numVertices
-                writeSingleSphere(obj,fid,ball,sizer,inc); % adds a single strut to the stl file
+                if obj.sphereDiameter(inc)~=0
+                    writeSingleSphere(obj,fid,ball,sizer,inc); % adds a single strut to the stl file
+                end
             end
             fclose(fid);
         end
