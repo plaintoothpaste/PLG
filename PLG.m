@@ -147,6 +147,17 @@ classdef PLG
             test = obj.struts(:,1)==obj.struts(:,2);
             obj.struts(test,:)=[];
             obj.strutDiameter(test)=[];
+            
+            % remove unused verts
+            allInds = (1:numVerts)';
+            usedInds = unique(obj.struts(:));
+            unusedInds = setdiff(allInds,usedInds);
+            newInds = (1:length(usedInds))';
+            allInds(usedInds) = newInds;
+            allInds(unusedInds)=0;
+            obj.struts = allInds(obj.struts);
+            obj.vertices(unusedInds,:) = [];
+            obj.sphereDiameter(unusedInds) = []; 
         end
         function plot(obj,colours)
             f = figure;
