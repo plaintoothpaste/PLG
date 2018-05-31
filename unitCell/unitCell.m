@@ -5,7 +5,8 @@ classdef unitCell
     properties
         unitName
         vertices
-        strutRadius
+        strutDiam
+        sphereDiam
         connections
         
         plgObj
@@ -21,14 +22,6 @@ classdef unitCell
                 obj = load(obj,names{inc});
             end
             obj = scale(obj); % apply scale to the unit cell for both size and diameters
-        end
-        function [vertices,connections,transform,name,type] = facetOut(obj)
-            % converts a beam model to a facet model, primarially done to allow addition of beam and
-            % facet unit cells
-            % TODO
-        end
-        function [vertices,connections,transform,name,type] = unitOut(obj)
-            % TODO
         end
         function [vertices,connections,transform,name,type] = beamOut(obj)
             % if the model is a beam model then a single strut [0,0,-0.5]->[0,0,0.5]
@@ -74,7 +67,6 @@ classdef unitCell
                 affine = originalPoints\newPoints;
                 transform = [transform;affine(1,1:3),affine(2,1:3),affine(3,1:3),affine(4,1:3)];
             end
-            
         end
     end
     methods (Access=protected)
@@ -128,16 +120,20 @@ classdef unitCell
         function obj = scale(obj)
             % scale for unit size, and diameter
             if numel(obj.plgObj.strutDiameter)==1
-                obj.strutRadius = ones(size(obj.connections,1),1)*obj.plgObj.strutDiameter/2;
+                obj.strutDiam = ones(size(obj.connections,1),1)*obj.plgObj.strutDiameter;
             else
-                obj.strutRadius = obj.plgObj.strutDiameter/2;
+                obj.strutDiam = obj.plgObj.strutDiameter;
+            end
+            if obj.plgObj.sphereAddition
+               obj.sphereDiam = ones(size(obj.vertices,1),1)*obj.plgObj.sphereDiameter;
+            else
+               obj.sphereDiam = zeros(size(obj.vertices,1),1);
             end
             
             obj.vertices(:,1) = obj.vertices(:,1)*obj.plgObj.unitSize(1);
             obj.vertices(:,2) = obj.vertices(:,2)*obj.plgObj.unitSize(2);
             obj.vertices(:,3) = obj.vertices(:,3)*obj.plgObj.unitSize(3);
         end
-        
     end
     methods (Static) % xml loading functions
         function children = parseChildNodes(node)
