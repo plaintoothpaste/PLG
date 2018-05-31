@@ -3,12 +3,6 @@ classdef PLG
     % but not limited to lattices.
     properties (SetAccess=protected)
         unitName;
-        unitType; % beam - transform storage of single beam can be saved to all formats 
-                  % facet - all facets can save out as stl or 3mf but 3mf not recommended
-                  % unit - one or more unit cells defined in facet format and
-                  % then transformed to the desired location 3mf or stl
-                  % custom - data from a custom beam input file can be
-                  % converted to beam for save out
         
         resolution;
         strutDiameter;
@@ -19,7 +13,6 @@ classdef PLG
         
         vertices;
         struts;
-        transform; % holds the transform for a specific strut to generate the entire lattice structure
         
         % 3 value vectors for the x y z params respectivally
         unitSize
@@ -35,9 +28,8 @@ classdef PLG
                           '*.3mf', 'tesselated facet file (recommended)';...
                           '*.custom', 'beam output method (simulation)';...
                           '*.inp', 'Abaqus input file (TODO)'};
-                      
+        
         tolerance; % defined as 1/100 of the shortest length present
-        dx; % length of a strut
     end
     methods
         function obj = PLG(varargin)
@@ -47,13 +39,11 @@ classdef PLG
                     % generate a new lattice
                     disp('generating a lattice from scratch');
                     obj.sphereAddition = false;
-                    obj.unitType = 'beam';
                 case 1
                     % import a custom lattice file containing beam and node
                     % definitions see load function for more information
                     disp('Loading an existing file');
                     obj = load(obj,varargin{1});
-                    obj.unitType = 'custom';
                     obj.sphereAddition = true;
                     obj.unitName = varargin{1};
                 otherwise
@@ -88,247 +78,127 @@ classdef PLG
                 end
             end
         end
-        function obj = defineUnit(obj,unitNames,type)
-            % define a unit cell and wheter output should be beam(default)
-            % unit or facet
-            if ~exist('type','var')
-                type = 'beam';
-            end
-            
+        function obj = defineUnit(obj,unitNames)
+            % define a unit cell and return the information that needs to
+            % be used to define it
             addpath('unitCell');
             unitObj = unitCell(unitNames,obj);
-            switch type
-                case 'beam'
-                    [obj.vertices,obj.struts,obj.transform,obj.unitName,obj.unitType] = beamOut(unitObj);
-                case 'unit'
-                    [obj.vertices,obj.struts,obj.transform,obj.unitName,obj.unitType] = unitOut(unitObj);
-                case 'facet'
-                    [obj.vertices,obj.struts,obj.transform,obj.unitName,obj.unitType] = facetOut(unitObj);
-                otherwise
-                    error('not a suitable type');
-            end
             rmpath('unitCell');
+            
+            obj.vertices = unitObj.vertices;
+            obj.struts = unitObj.connections;
+            obj.strutDiameter = unitObj.strutDiam;
+            obj.sphereDiameter = unitObj.sphereDiam;
+            obj.unitName = unitObj.unitName;
         end
         function obj = cellReplication(obj)
-            % if unitType is a beam it will replicate transformation if it is a facet type it will
-            % replicate struts and verts
-            % replaces obj.replications with a list of x,y,z coordinates for the unit cell
+            % replicates vertices and struts as well as sphere and strut diams
             xPlacement = [0:obj.unitSize(1):obj.unitSize(1)*(obj.replications(1)-1)]+obj.origin(1);
             yPlacement = [0:obj.unitSize(2):obj.unitSize(2)*(obj.replications(2)-1)]+obj.origin(2);
             zPlacement = [0:obj.unitSize(3):obj.unitSize(3)*(obj.replications(3)-1)]+obj.origin(3);
             [XX,YY,ZZ] = ndgrid(xPlacement,yPlacement,zPlacement);
             
-            switch obj.unitType
-                case 'beam'
-                    % replicate transform
-                    originalTransforms = obj.transform;
-                    sizeTransforms = size(originalTransforms);
-                    numReps = length(XX(:));
-                    obj.transform = zeros(numReps*sizeTransforms(1),sizeTransforms(2));
-                    for incReps = 1:numReps
-                        newX = XX(incReps);
-                        newY = YY(incReps);
-                        newZ = ZZ(incReps);
-                        for incTrans = 1:sizeTransforms(1)
-                            currentInc = incTrans + (incReps-1)*sizeTransforms(1);
-                            currentTransform = originalTransforms(incTrans,:);
-                            affine = [currentTransform(1:3),0;currentTransform(4:6),0;currentTransform(7:9),0;currentTransform(10:12),1];
-                            newAffine = zeros(4); newAffine(4,1:3) = [newX,newY,newZ];
-                            newAffine = newAffine+affine;
-                            obj.transform(currentInc,:) = [newAffine(1,1:3),newAffine(2,1:3),newAffine(3,1:3),newAffine(4,1:3)];
-                        end
-                    end
-                case 'custom'
-                    vertOut = arrayfun(@(x,y,z) ...
-                        [obj.vertices(:,1) + x,...
-                        obj.vertices(:,2) + y,...
-                        obj.vertices(:,3) + z]...
-                        ,XX,YY,ZZ,'UniformOutput',0);
-                    obj.vertices = cell2mat(vertOut(:));
-                    
-                    strutCounter = 0:(numel(XX)-1);
-                    numStruts = max(max(obj.struts));
-                    strutCounter = strutCounter*numStruts;
-                    strutOut = arrayfun(@(x) obj.struts + x,strutCounter,'UniformOutput',0);
-                    obj.struts = cell2mat(strutOut(:));
-                otherwise
-                    error('cell replication can not be performed with this method or a unit cell is not yet defined');
-            end
+            vertOut = arrayfun(@(x,y,z) ...
+                [obj.vertices(:,1) + x,...
+                obj.vertices(:,2) + y,...
+                obj.vertices(:,3) + z]...
+                ,XX,YY,ZZ,'UniformOutput',0);
+            obj.vertices = cell2mat(vertOut(:));
+            
+            sphereDiamOut = arrayfun(@(x) ...
+                obj.sphereDiameter,XX,...
+                'UniformOutput',0);
+            obj.sphereDiameter = cell2mat(sphereDiamOut(:));
+            
+            
+            strutCounter = 0:(numel(XX)-1);
+            numStruts = max(max(obj.struts));
+            strutCounter = strutCounter*numStruts;
+            strutOut = arrayfun(@(x) obj.struts + x,strutCounter,'UniformOutput',0);
+            obj.struts = cell2mat(strutOut(:));
+            strutDiamOut = arrayfun(@(x) obj.strutDiameter, XX,'UniformOutput',0);
+            obj.strutDiameter = cell2mat(strutDiamOut(:));
         end
         function obj = cleanLattice(obj)
             % cleans the lattice structure including the removal of duplicate transforms or
             % duplicate vertices and struts depending on type
-            switch obj.unitType
-                case 'beam'
-                    % determine identical transforms and remove can be done with a unique
-                    tester = round(obj.transform,6,'significant');
-                    [~,I] = unique(tester,'rows');
-                    obj.transform = obj.transform(I,:);
-                case 'custom'
-                    % tolerance - get the shortest strut and divide by 1000
-                    numVerts = size(obj.vertices,1);
-                    verts1 = obj.vertices(obj.struts(:,1),:);
-                    verts2 = obj.vertices(obj.struts(:,2),:);
-                    lengthVerts = sum(sqrt((verts1-verts2).^2),2);
-                    obj.tolerance = min(lengthVerts)/20;
-                    % duplicate vertices
-                    [obj.vertices,i,indexn]=uniquetol(obj.vertices,obj.tolerance,'ByRows',1,'DataScale',1);
-                    if ~isempty(obj.sphereDiameter)
-                        if numel(obj.sphereDiameter)==1
-                            obj.sphereDiameter = ones(numVerts,1)*obj.sphereDiameter;
-                        end
-                        obj.sphereDiameter = obj.sphereDiameter(i);
-                    end
-                    obj.struts = indexn(obj.struts);
-                    
-                    % duplicate struts
-                    tmp = obj.struts;
-                    test = tmp(:,1)>tmp(:,2);
-                    obj.struts(test,1) = tmp(test,2);
-                    obj.struts(test,2) = tmp(test,1);
-                    [obj.struts,i] = unique(obj.struts,'rows');
-                    if numel(obj.strutDiameter)==1
-                        obj.strutDiameter = ones(size(tmp,1),1)*obj.strutDiameter;
-                    end
-                    obj.strutDiameter = obj.strutDiameter(i);
-                    
-                    % duplicate struts zero length
-                    test = obj.struts(:,1)==obj.struts(:,2);
-                    obj.struts(test,:)=[];
-                    obj.strutDiameter(test)=[];
-                otherwise
-                    error('cleaning can not be performed on this unitType');
-            end
-        end
-        
-        function obj = beam2custom(obj)
-            % changes a beam file to the custom import format
-            % this enables stl and custom save
-            numTransforms = size(obj.transform,1);
-            newVerts = zeros(numTransforms*2,3);
-            newFacets = [(1:2:(numTransforms*2-1))',(2:2:numTransforms*2)'];
-            locations = [obj.vertices,[1;1]];
-            for inc = 1:numTransforms
-                squareTransform = flat2squareTransform(obj,inc);
-                newLocation = locations*squareTransform;
-                newVerts((2*inc-1):2*inc,:) = newLocation(:,1:3);
-            end
-            % replace vertices and facets change unit type and clear transforms
-            obj.unitType = 'custom';
-            obj.vertices = newVerts;
-            obj.struts = newFacets;
-            obj.transform = [];
-        end
-        function obj = custom2beam(obj)
-            % converts a custom loaded file to a beam format which stores data as a series of
-            % transforms of the generic beam file
             
-            % as this is already completed in the unit cell function simply use it
-            addpath('unitCell');
-            obj.unitSize = [1,1,1];
-            unitObj = unitCell({'bcc'},obj);
-            unitObj.vertices = obj.vertices;
-            unitObj.connections = obj.struts;
+            % tolerance - get the shortest strut and divide by 1000
+            numVerts = size(obj.vertices,1);
+            verts1 = obj.vertices(obj.struts(:,1),:);
+            verts2 = obj.vertices(obj.struts(:,2),:);
+            lengthVerts = sum(sqrt((verts1-verts2).^2),2);
+            obj.tolerance = min(lengthVerts)/20;
             
-            [vertices,connections,transform,~,~] = beamOut(unitObj);
-            rmpath('unitCell');
+            % duplicate vertices
+            [obj.vertices,i,indexn]=uniquetol(obj.vertices,obj.tolerance,'ByRows',1,'DataScale',1);
+            obj.sphereDiameter = obj.sphereDiameter(i);
+            obj.struts = indexn(obj.struts);
             
-            obj.unitType = 'beam';
-            obj.transform = transform;
-            obj.vertices = vertices;
-            obj.struts = connections;
+            % duplicate struts
+            tmp = obj.struts;
+            test = tmp(:,1)>tmp(:,2);
+            obj.struts(test,1) = tmp(test,2);
+            obj.struts(test,2) = tmp(test,1);
+            [obj.struts,i] = unique(obj.struts,'rows');
+            obj.strutDiameter = obj.strutDiameter(i);
+            
+            % duplicate struts zero length
+            test = obj.struts(:,1)==obj.struts(:,2);
+            obj.struts(test,:)=[];
+            obj.strutDiameter(test)=[];
         end
-        function obj = beam2facet(obj)
-            % not recommended but kept for compatibility represents all the facets in the 3d
-            % geometry all the time.
-            error('TODO');
-        end
-        function obj = custom2facet(obj)
-            error('TODO');
-        end
-        function obj = unit2beam(obj)
-            error('TODO');
-        end
-        
         function plot(obj,colours)
-            % plot the lattice with nodes highlighted currently only works for beams
-            switch obj.unitType
-                case 'beam'
-                    f = figure;
-                    f.Units	= 'Normalized';
-                    f.Position = [0,0,1,1];
-                    f.Name = 'STL plotter';
-                    a = axes;
-                    a.View = [45,45];
-                    axis vis3d
-                    a.NextPlot='add';
-                    
-                    numTransforms=size(obj.transform,1);
-                    if ~exist('colours','var')
-                        colours = repmat([0.3,0.3,0.3,0.5],numTransforms,1);
-                    end
-                    zeroPoints = [obj.vertices,[1;1]];
-                    for inc = 1:numTransforms
-                        currentTransform = obj.transform(inc,:);
-                        affine = zeros(4);
-                        affine(4,4) = 1;
-                        affine(1,1:3) = currentTransform(1:3);
-                        affine(2,1:3) = currentTransform(4:6);
-                        affine(3,1:3) = currentTransform(7:9);
-                        affine(4,1:3) = currentTransform(10:12);
-                        
-                        points = zeroPoints*affine;
-                        p = plot3(points(:,1),points(:,2),points(:,3),'Color',colours(inc,:));
-                        p.MarkerFaceColor = [0.9,0.5,0]; p.MarkerEdgeColor = 'none';
-                    end
-                case 'custom'
-                    f = figure;
-                    f.Units	= 'Normalized';
-                    f.Position = [0,0,1,1];
-                    f.Name = 'STL plotter';
-                    a = axes;
-                    a.View = [45,45];
-                    axis vis3d
-                    a.NextPlot='add';
-                    numStruts = length(obj.strutDiameter);
-                    if ~exist('colours','var')
-                        colours = repmat([0.3,0.3,0.3,0.5],numStruts,1);
-                    end
-                    for inc = 1:numStruts
-                        points = [obj.vertices(obj.struts(inc,1),:);obj.vertices(obj.struts(inc,2),:)];
-                        p = plot3(points(:,1),points(:,2),points(:,3),'Color',colours(inc,:));
-                        p.MarkerFaceColor = [0.9,0.5,0]; p.MarkerEdgeColor = 'none';
-                    end
-                otherwise
-                    error('Plotting not yet supported for this unitType');
+            f = figure;
+            f.Units	= 'Normalized';
+            f.Position = [0,0,1,1];
+            f.Name = 'STL plotter';
+            a = axes;
+            a.View = [45,45];
+            axis vis3d
+            a.NextPlot='add';
+            numStruts = length(obj.strutDiameter);
+            if ~exist('colours','var')
+                colours = repmat([0.3,0.3,0.3,0.5],numStruts,1);
+            end
+            for inc = 1:numStruts
+                points = [obj.vertices(obj.struts(inc,1),:);obj.vertices(obj.struts(inc,2),:)];
+                p = plot3(points(:,1),points(:,2),points(:,3),'Color',colours(inc,:));
+                p.MarkerFaceColor = [0.9,0.5,0]; p.MarkerEdgeColor = 'none';
             end
             xlabel('x')
             ylabel('y')
             zlabel('z')
         end
+        function save(obj)
+            % this overloads the save function and allows saving out in various
+            % formats however this only saves the latticeStructure structure
+            [fileName,pathName,filterIndex] = uiputfile(obj.saveExtensions);
+            file = [pathName,fileName];
+            switch filterIndex
+                case 1
+                    saveStl(obj,file);
+                case 2
+                    save3mf(obj,file)
+                case 3
+                    saveCustom(obj,file)
+                case 4
+                    saveAbaqus(obj,file)
+                otherwise
+                    error('No file saved')
+            end
+        end
     end
     methods % lattice manipulations
         function obj = scale(obj,sx,sy,sz)
-            %scales a lattice in space
-            switch obj.unitType
-                case 'beam'
-                    obj = beamScale(obj,sx,sy,sz);
-                case 'custom'
-                    obj = standardScale(obj,sx,sy,sz);
-                case 'facet'
-                    obj = standardScale(obj,sx,sy,sz);
-            end
+            obj.vertices(:,1) = obj.vertices(:,1)*sx;
+            obj.vertices(:,2) = obj.vertices(:,2)*sy;
+            obj.vertices(:,3) = obj.vertices(:,3)*sz;
         end
         function obj = translate(obj,x,y,z)
-            %translates a lattice in space
-            switch obj.unitType
-                case 'beam'
-                    obj = beamTranslate(obj,x,y,z);
-                case 'custom'
-                    obj = standardTranslate(obj,x,y,z);
-                case 'facet'
-                    obj = standardTranslate(obj,x,y,z);
-            end
+            obj.vertices(:,1) = obj.vertices(:,1)+x;
+            obj.vertices(:,2) = obj.vertices(:,2)+y;
+            obj.vertices(:,3) = obj.vertices(:,3)+z;
         end
         function obj = rotate(obj,wx,wy,wz)
             % rotations are in degrees about the main axes
@@ -336,108 +206,25 @@ classdef PLG
             wx = wx*pi/180;
             wy = wy*pi/180;
             wz = wz*pi/180;
-            switch obj.unitType
-                case 'beam'
-                    obj = beamRotate(obj,wx,wy,wz);
-                case 'custom'
-                    error('TODO')
-                case 'facet'
-                    error('TODO')
-            end
+            
+            affineMatrix = [1*cos(wy)*cos(wz), sin(wz),           -sin(wy),                 0;...
+                            -sin(wz),          cos(wx)*1*cos(wz), sin(wx),           0;...
+                            sin(wy),           -sin(wx),          cos(wx)*cos(wy)*1, 0;...
+                            0,                 0,                 0,                 1]; % needs to be transposed to work with row rather then column data that the verts are stored in 
+            newVerts = arrayfun(@(x,y,z) [x,y,z,1]*affineMatrix,obj.vertices(:,1),obj.vertices(:,2),obj.vertices(:,3),'UniformOutput',0);
+            newVerts = cell2mat(newVerts);
+            obj.vertices = newVerts(:,1:3);
         end
         function obj = plus(obj,obj1)
             % add obj1 to obj2
-            if ~strcmp(obj.unitType,obj1.unitType)
-                error('Both PLG objects must be the samae type to add together');
-            end
-            switch obj.unitType
-                case 'beam'
-                    % put the transforms together
-                    obj.transform = [obj.transform;obj1.transform];
-                case 'unit'
-                    error('TODO');
-                otherwise
-                    newStruts = obj1.struts+max(obj.struts(:));
-                    obj.struts = [obj.struts;newStruts];
-                    obj.strutDiameter = [obj.strutDiameter;obj1.strutDiamter];
-                    obj.sphereDiameter = [obj.sphereDiameter;obj1.sphereDiameter];
-                    obj.vertices = [obj.vertices;obj1.vertices];
-            end
+            newStruts = obj1.struts+max(obj.struts(:));
+            obj.struts = [obj.struts;newStruts];
+            obj.strutDiameter = [obj.strutDiameter;obj1.strutDiameter];
+            obj.sphereDiameter = [obj.sphereDiameter;obj1.sphereDiameter];
+            obj.vertices = [obj.vertices;obj1.vertices];
             
-            % remove any matching struts/transforms
+            % remove any matching struts
             obj = cleanLattice(obj);
-        end
-    end
-    methods (Access=protected) % sub lattice manipulation codes
-        function obj = standardScale(obj,sx,sy,sz)
-            obj.vertices(:,1) = obj.vertices(:,1)*sx;
-            obj.vertices(:,2) = obj.vertices(:,2)*sy;
-            obj.vertices(:,3) = obj.vertices(:,3)*sz;
-        end
-        function obj = beamScale(obj,sx,sy,sz)
-            scaler = [sx,0 ,0 ,0;...
-                      0 ,sy,0 ,0;...
-                      0 ,0 ,sz,0;...
-                      0 ,0 ,0 ,1];
-            for inc = 1:size(obj.transform,1)
-                squareTransform = flat2squareTransform(obj,inc);
-                newTrans = squareTransform*scaler;
-                obj = squareIntoFlatTransform(obj,newTrans,inc);
-            end
-        end
-        
-        function obj = standardTranslate(obj,x,y,z)
-            obj.vertices(:,1) = obj.vertices(:,1)+x;
-            obj.vertices(:,2) = obj.vertices(:,2)+y;
-            obj.vertices(:,3) = obj.vertices(:,3)+z;
-        end
-        function obj = beamTranslate(obj,x,y,z)
-            obj.transform(:,10) = obj.transform(:,10)+x;
-            obj.transform(:,11) = obj.transform(:,11)+y;
-            obj.transform(:,12) = obj.transform(:,12)+z;
-        end
-        
-        function obj = beamRotate(obj,wx,wy,wz)
-            transX = [1,0       ,0      ,0;...
-                      0,cos(wx) ,sin(wx),0;...
-                      0,-sin(wx),cos(wx),0;...
-                      0,0       ,0      ,1];
-            transY = [cos(wy),0,sin(wy),0;...
-                      0      ,1,0       ,0;...
-                      -sin(wy),0,cos(wy) ,0;...
-                      0      ,0,0       ,1];
-            transZ = [cos(wz) ,sin(wz),0,0;...
-                      -sin(wz),cos(wz),0,0;...
-                      0       ,0      ,1,0;...
-                      0       ,0      ,0,1];
-            fullTrans = transX * transY * transZ;
-            for inc = 1:size(obj.transform,1)
-                squareTransform = flat2squareTransform(obj,inc);
-                newTrans = squareTransform*fullTrans;
-                obj = squareIntoFlatTransform(obj,newTrans,inc);
-                % debug
-                line = [obj.vertices,[0;0]];
-                xnew = line*newTrans;
-                xold = line*squareTransform;
-            end
-            
-        end
-        
-        function squareTransform = flat2squareTransform(obj,index)
-            % takes the transform at row index and returns the square transform ready for use
-            currentTransformFlat = obj.transform(index,:);
-            squareTransform = eye(4);
-            squareTransform(1,1:3)=currentTransformFlat(1:3);
-            squareTransform(2,1:3)=currentTransformFlat(4:6);
-            squareTransform(3,1:3)=currentTransformFlat(7:9);
-            squareTransform(4,1:3)=currentTransformFlat(10:12);
-        end
-        function obj = squareIntoFlatTransform(obj,squareTransform,index)
-            % takes a square transform and flattens it then replaces the transform at the index row
-            obj.transform(index,:) = [squareTransform(1,1:3),...
-                squareTransform(2,1:3),...
-                squareTransform(3,1:3),...
-                squareTransform(4,1:3)];
         end
     end
     methods % stats and advanced
@@ -558,8 +345,6 @@ classdef PLG
             xlswrite(fileName,{'Repetitions'},'Sheet1','K3');
             xlswrite(fileName,summaryRedun,'Sheet1','J4');
         end
-    end
-    methods (Access=protected)%not called by the user
         function obj = load(obj,file)
             % load a custom beam input file to generate a lattice structure
             parts = strsplit(file,'.');
@@ -599,37 +384,45 @@ classdef PLG
                 obj.sphereDiameter = data(3:numNodes+2,4);
             end
         end
-    end           
+    end          
     methods % save out methods
-        function save(obj)
-            % this overloads the save function and allows saving out in various
-            % formats however this only saves the latticeStructure structure
-            [fileName,pathName,filterIndex] = uiputfile(obj.saveExtensions);
-            file = [pathName,fileName];
-            switch filterIndex
-                case 1
-                    saveStl(obj,file);
-                case 2
-                    save3mf(obj,file)
-                case 3
-                    saveCustom(obj,file)
-                case 4
-                    saveAbaqus(obj,file)
-                otherwise
-                    error('No file saved')
-            end
-        end
         function saveStl(obj,fullName)
-            % save out an stl file from the custom or facet unit type.
-            switch obj.unitType
-                case 'beam'
-                    obj = beam2custom(obj);
-                    writeCustomType(obj,fullName);
-                case 'custom'
-                    writeCustomType(obj,fullName);
-                case 'facet'
-                    obj = standardScale(obj,sx,sy,sz);
+            % save out an stl file
+            % setup
+            numFacets = obj.resolution*4;%number of facets created for one strut
+            numLinks = size(obj.struts,1);
+            numVertices = size(obj.vertices,1);
+            totalFacetsNoBall = numFacets*numLinks;
+            if obj.strutDiameter(1)==0
+                % do not write spheres
+                totalFacets = totalFacetsNoBall;
+            else
+                totalFacets = totalFacetsNoBall + 2*obj.sphereResolution*(obj.sphereResolution-1)*numVertices;
             end
+            %write the header
+            fid=fopen(fullName,'w');
+            fprintf(fid, '%-80s', 'fast stl generator'); %binary write information
+            fwrite(fid,totalFacets,'uint32'); %stl binary header file contains the total number of facets in the stl file
+            
+            % write the facets
+            %write out the struts
+            for inc = 1:numLinks
+                writeSingleStrut(obj,fid,inc); % adds a single strut to the stl file
+            end
+            
+            if obj.strutDiameter(1)==0
+                fclose(fid);
+                return;
+            end
+            %write the spheres
+            [x,y,z]=sphere(obj.sphereResolution); %create sphere with higher accuracy
+            ball.struts= convhull([x(:), y(:), z(:)]); %create triangle links
+            sizer = size(ball.struts,1);
+            ball.vertices=[x(:),y(:),z(:)]; %store the points
+            for inc = 1:numVertices
+                writeSingleSphere(obj,fid,ball,sizer,inc); % adds a single strut to the stl file
+            end
+            fclose(fid);
         end
         function saveAbaqus(obj,fullName)
             % saves out as a abaqus beam model that is used as an input
@@ -668,15 +461,6 @@ classdef PLG
         function saveCustom(obj,fullName)
             % saves data to a csv file with the .custom extension usefull as a beam model input to
             % simulations
-            switch obj.unitType
-                case 'beam'
-                    % convert to custom
-                    obj = beam2custom(obj);
-                case 'custom'
-                    % ready to save
-                otherwise
-                    error('can not save out a custom file with this unit type: %s',obj.unitType);
-            end
             obj = cleanLattice(obj);
             
             % write out the data
@@ -693,44 +477,103 @@ classdef PLG
         end
         function save3mf(obj,fullName)
             % safe a PLG lattice as a 3D manufacturing format file
-            if ~strcmp(obj.unitType, 'beam')
-                error('only beam type can presently be saved as a 3mf file');
-            end
+            % this consists of three steps
+            % write the general structure of the xml intially
+            %  model
+            %    resources
+            %      object
+            %        mesh
+            %           vertices
+            %             vertex
+            %           triangles
+            %             triangle
+            %        components
+            %           component
+            %   build
+            % 1. write a generic strut
+            % 2. write a generic sphere
+            % 3. write the locations of the above as a series of
+            % transformations
             
-            %create an object to hold xml
-            threeMfDoc = com.mathworks.xml.XMLUtils.createDocument('model');
-            threeMfNode = threeMfDoc.getDocumentElement;
-            threeMfNode.setAttribute('unit','millimeter');
-            threeMfNode.setAttribute('xml:lang','en-US');
+            %create an object to hold xml and then generate its structure
+            xmlObject = com.mathworks.xml.XMLUtils.createDocument('model');
+            model = xmlObject.getDocumentElement;
+            model.setAttribute('unit','millimeter');
+            model.setAttribute('xml:lang','en-US');
             
-            resourcesNode = threeMfDoc.createElement('resources');
-            threeMfNode.appendChild(resourcesNode);
+            resources = xmlObject.createElement('resources');
+            model.appendChild(resources);
             
-            % write the geom for a single strut and ball (if required)
-            idStrut = 0;
-            idStrutComponents = 1;
-            threeMfDoc = threeMfUnitObj(obj,threeMfDoc,resourcesNode,idStrut);
-            threeMfDoc = threeMfreplicate_unit(obj,threeMfDoc,resourcesNode,idStrut,idStrutComponents);
-            % write each object (with all its components 1 time
-            buildNode = threeMfDoc.createElement('build');
-            threeMfNode.appendChild(buildNode);
-            itemNode = threeMfDoc.createElement('item');
-            itemNode.setAttribute('objectid',num2str(idStrutComponents));
-            buildNode.appendChild(itemNode);
+            strutObject = xmlObject.createElement('object');
+            strutObject.setAttribute('id','0');
+            strutObject.setAttribute('type','model');
+            resources.appendChild(strutObject);
+            
+            ballObject = xmlObject.createElement('object');
+            ballObject.setAttribute('id','1');
+            ballObject.setAttribute('type','model');
+            resources.appendChild(ballObject);
+            
+            strutMesh = xmlObject.createElement('mesh');
+            strutObject.appendChild(strutMesh);
+            
+            ballMesh = xmlObject.createElement('mesh');
+            ballObject.appendChild(ballMesh);
+            
+            strutVertices = xmlObject.createElement('vertices');
+            strutMesh.appendChild(strutVertices);
+            strutTriangles = xmlObject.createElement('triangles');
+            strutMesh.appendChild(strutTriangles);
+            
+            ballVertices = xmlObject.createElement('vertices');
+            ballMesh.appendChild(ballVertices);
+            ballTriangles = xmlObject.createElement('triangles');
+            ballMesh.appendChild(ballTriangles);
+            
+            % write the individual strut and ball
+            xmlObject = threeMfStrut(obj,xmlObject,strutVertices,strutTriangles);
+            xmlObject = threeMfBall(obj,xmlObject,ballVertices,ballTriangles);
+            
+            
+            % write out the replications that goes under components
+            %replicate the struts throughout space
+            strutObject1 = xmlObject.createElement('object');
+            strutObject1.setAttribute('id','2');
+            strutObject1.setAttribute('type','model');
+            resources.appendChild(strutObject1);
+            strutComponent = xmlObject.createElement('components');
+            strutObject1.appendChild(strutComponent);
+            
+            xmlObject = threeMfStrutReplicate(obj,xmlObject,strutComponent,0);
+            
             if obj.sphereAddition
-                idBall = 2;
-                idBallComponents = 3;
-                threeMfDoc = threeMfBallObj(obj,threeMfDoc,resourcesNode,idBall);
-                threeMfDoc = threeMfreplicate_Ball(obj,threeMfDoc,resourcesNode,idBall,idBallComponents);
-                itemNode = threeMfDoc.createElement('item');
-                itemNode.setAttribute('objectid',num2str(idBallComponents));
-                buildNode.appendChild(itemNode);
+                ballObject1 = xmlObject.createElement('object');
+                ballObject1.setAttribute('id','3');
+                ballObject1.setAttribute('type','model');
+                resources.appendChild(ballObject1);
+                ballComponent = xmlObject.createElement('components');
+                ballObject1.appendChild(ballComponent);
+            
+                xmlObject = threeMfBallReplicate(obj,xmlObject,ballComponent,1);
             end
             
+            
+            % write out the build section which states that the components
+            % should be put in the assembly
+            build = xmlObject.createElement('build');
+            model.appendChild(build);
+            item = xmlObject.createElement('item');
+            item.setAttribute('objectid','2');
+            build.appendChild(item);
+            if obj.sphereAddition
+                item = xmlObject.createElement('item');
+                item.setAttribute('objectid','3');
+                build.appendChild(item);
+            end
             % gather the other supplementary files that are required to make a 3mf file
             mkdir('_rels');
             mkdir('3D');
-            xmlwrite(['3D',filesep,'3dmodel.model'],threeMfDoc);
+            xmlwrite(['3D',filesep,'3dmodel.model'],xmlObject);
             copyfile('other/.rels','_rels/.rels');
             copyfile('other/[Content_Types].xml','[Content_Types].xml');
             zip('out',{'_rels','3D','[Content_Types].xml'});
@@ -742,109 +585,66 @@ classdef PLG
             rmdir('_rels','s');
         end
     end
-    methods % stl format
-        function writeCustomType(obj,fullName)
-            % write out a stl file using the custom plg type
-            % setup and stl header inforation
-            numFacets = obj.resolution*4;%number of facets created for one strut
-            numLinks = size(obj.struts,1);
-            numVertices = size(obj.vertices,1);
-            if isscalar(obj.strutDiameter)
-                obj.strutDiameter = ones(numLinks,1)*obj.strutDiameter;
-            end
-            if isscalar(obj.sphereDiameter)
-                obj.sphereDiameter = ones(numVertices,1)*obj.sphereDiameter;
-            end
-            totalFacetsNoBall = numFacets*numLinks;
-            totalFacetsWithBall = totalFacetsNoBall + 2*obj.sphereResolution*(obj.sphereResolution-1)*numVertices;
-            fid=fopen(fullName,'w');
-            fprintf(fid, '%-80s', 'fast stl generator'); %binary write information
-            if ~isempty(obj.sphereDiameter)
-                fwrite(fid,uint32(totalFacetsWithBall),'uint32'); %stl binary header file contains the total number of facets in the stl file
+    methods (Access=protected) % stl format
+        function writeSingleStrut(obj,fid,inc)
+            % based on a strut increment write a single strut to file 
+            point1 = obj.vertices(obj.struts(inc,1),:);
+            point2 = obj.vertices(obj.struts(inc,2),:);
+            
+            vector = point2-point1;
+            u1 = vector/norm(vector);
+            if u1(3)==1 || u1(3)==-1
+                v1 = [1,0,0];
             else
-                fwrite(fid,uint32(totalFacetsNoBall),'uint32'); %stl binary header file contains the total number of facets in the stl file
+                v1 = cross([0,0,1],u1);
+                v1 = v1/norm(v1);
             end
-            %write out the truts
-            radius = obj.strutDiameter/2;
-            % calculate points on each facet then write said points to file
-            % in the correct order
-            for i=1:numLinks
-                point1 = obj.vertices(obj.struts(i,1),:);
-                point2 = obj.vertices(obj.struts(i,2),:);
-                vector = point2-point1;
-                u1 = vector/norm(vector);
-                if u1(3)==1 || u1(3)==-1
-                    v1 = [1,0,0];
-                else
-                    v1 = cross([0,0,1],u1);
-                    v1 = v1/norm(v1);
-                end
-                offset = radius(i)*v1;
-                vert1end = zeros(obj.resolution,3);
-                vert2end = zeros(obj.resolution,3);
-                for j=1:obj.resolution
-                    Qrot1 = PLG.qGetRotQuaternion((j-1)*2*pi/obj.resolution, u1);
-                    absolutePointRotation = PLG.qRotatePoint(offset', Qrot1)';
-                    % end 1
-                    vert1end(j,:)=absolutePointRotation+point1;
-                    % end 2
-                    vert2end(j,:)=absolutePointRotation+point2;
-                end
-                % scatter3(vertOut(:,1),vertOut(:,2),vertOut(:,3)) % scatter
-                % join struts
-                for j=1:obj.resolution
-                    % end of strut at point 1
-                    datOut = circshift(vert1end,j);
-                    facet_a=point1;
-                    facet_b=datOut(1,:);
-                    facet_c=datOut(2,:);
-                    writeSingleFace(obj,fid,facet_a,facet_c,facet_b);
-                    
-                    % end of strut at point 2
-                    datOut = circshift(vert2end,j);
-                    facet_a=point2;
-                    facet_b=datOut(1,:);
-                    facet_c=datOut(2,:);
-                    writeSingleFace(obj,fid,facet_a,facet_b,facet_c);
-                    
-                    % along direction point 1 to point 2
-                    datOut1 = circshift(vert1end,j);
-                    datOut2 = circshift(vert2end,j);
-                    facet_a=datOut1(1,:);
-                    facet_b=datOut2(1,:);
-                    facet_c=datOut2(2,:);
-                    writeSingleFace(obj,fid,facet_a,facet_c,facet_b);
-                    
-                    % along direction point 2 to point 1
-                    datOut1 = circshift(vert1end,j);
-                    datOut2 = circshift(vert2end,j);
-                    facet_a=datOut1(1,:);
-                    facet_b=datOut1(2,:);
-                    facet_c=datOut2(2,:);
-                    writeSingleFace(obj,fid,facet_a,facet_b,facet_c);
-                end
+            
+            % generate all the points on the strut
+            offset = obj.strutDiameter(inc)*v1/2; % has to use radius
+            vert1end = zeros(obj.resolution,3);
+            vert2end = zeros(obj.resolution,3);
+            for j=1:obj.resolution
+                Qrot1 = PLG.qGetRotQuaternion((j-1)*2*pi/obj.resolution, u1);
+                absolutePointRotation = PLG.qRotatePoint(offset', Qrot1)';
+                % end 1
+                vert1end(j,:)=absolutePointRotation+point1;
+                % end 2
+                vert2end(j,:)=absolutePointRotation+point2;
             end
-            if isempty(obj.sphereDiameter)
-                fclose(fid);
-                return;
+            
+            % write the points to file in the write order to create a stl file
+            for j=1:obj.resolution
+                % end of strut at point 1
+                datOut = circshift(vert1end,j);
+                facet_a=point1; facet_b=datOut(1,:); facet_c=datOut(2,:);
+                writeSingleFace(obj,fid,facet_a,facet_c,facet_b);
+                
+                % end of strut at point 2
+                datOut = circshift(vert2end,j);
+                facet_a=point2; facet_b=datOut(1,:); facet_c=datOut(2,:);
+                writeSingleFace(obj,fid,facet_a,facet_b,facet_c);
+                
+                % along direction point 1 to point 2
+                datOut1 = circshift(vert1end,j);
+                datOut2 = circshift(vert2end,j);
+                facet_a=datOut1(1,:); facet_b=datOut2(1,:); facet_c=datOut2(2,:);
+                writeSingleFace(obj,fid,facet_a,facet_c,facet_b);
+                
+                % along direction point 2 to point 1
+                datOut1 = circshift(vert1end,j);
+                datOut2 = circshift(vert2end,j);
+                facet_a=datOut1(1,:); facet_b=datOut1(2,:); facet_c=datOut2(2,:);
+                writeSingleFace(obj,fid,facet_a,facet_b,facet_c);
             end
-            % write the spheres to file
-            [x,y,z]=sphere(obj.sphereResolution); %create sphere with higher accuracy
-            ball.struts= convhull([x(:), y(:), z(:)]); %create triangle links
-            sizer = size(ball.struts,1);
-            ball.vertices=[x(:),y(:),z(:)]; %store the points
-            for i=1:numVertices
-                offset=ball.vertices*obj.sphereDiameter(i)/2;
-                target=[offset(:,1)+obj.vertices(i,1),offset(:,2)+obj.vertices(i,2),offset(:,3)+obj.vertices(i,3)];
-                for j=1:sizer
-                    %get values first end
-                    facet_a=target(ball.struts(j,1),:);
-                    facet_b=target(ball.struts(j,2),:);
-                    facet_c=target(ball.struts(j,3),:);
-                    writeSingleFace(obj,fid,facet_a,facet_b,facet_c);
-                end
+        end
+        function writeSingleSphere(obj,fid,ball,sizer,inc)
+            offset=ball.vertices*obj.sphereDiameter(inc)/2;
+            target=[offset(:,1)+obj.vertices(inc,1),offset(:,2)+obj.vertices(inc,2),offset(:,3)+obj.vertices(inc,3)];
+            for j=1:sizer
+                facet_a=target(ball.struts(j,1),:); facet_b=target(ball.struts(j,2),:); facet_c=target(ball.struts(j,3),:);
+                writeSingleFace(obj,fid,facet_a,facet_b,facet_c);
             end
-            fclose(fid);
         end
         function writeSingleFace(obj,fid,v1,v2,v3)
             normal=cross(v2-v1,v3-v1);
@@ -855,248 +655,178 @@ classdef PLG
             fwrite(fid,0,'uint16','l');
         end
     end
-    methods % 3mf format
-        function threeMfDoc = threeMfBallObj(obj,threeMfDoc,resourcesNode,idNum)
-            % write out an object to represent a ball 
-            objNode = threeMfDoc.createElement('object');
-            objNode.setAttribute('id',num2str(idNum));
-            objNode.setAttribute('type','model');
-            resourcesNode.appendChild(objNode);
-            
-            meshNode = threeMfDoc.createElement('mesh');
-            objNode.appendChild(meshNode);
-            
-            verticesNode = threeMfDoc.createElement('vertices');
-            meshNode.appendChild(verticesNode);
-            
+    methods (Access=protected)% 3mf format
+        function xmlObject = threeMfBall(obj,xmlObject,ballVertices,ballTriangles)
+            % write a single ball as an object
             % write the vertexs
             [x,y,z]=sphere(obj.sphereResolution); %create sphere with higher accuracy
             ball.struts= convhull([x(:), y(:), z(:)]); %create triangle links
             ball.vertices=[x(:),y(:),z(:)]; %store the points
-            ball.vertices = ball.vertices*0.5;
+            ball.vertices = ball.vertices;
             for inc = 1:size(ball.vertices,1)
-                vertexNode = threeMfDoc.createElement('vertex');
+                vertexNode = xmlObject.createElement('vertex');
               
                 val = sprintf('%3.8f',ball.vertices(inc,1));
                 vertexNode.setAttribute('x',val);
-                
                 val = sprintf('%3.8f',ball.vertices(inc,2));
                 vertexNode.setAttribute('y',val);
-                
                 val = sprintf('%3.8f',ball.vertices(inc,3));
                 vertexNode.setAttribute('z',val);
-                
-                verticesNode.appendChild(vertexNode);
+                ballVertices.appendChild(vertexNode);
             end
             
             %write the connections
-            triNode = threeMfDoc.createElement('triangles');
-            meshNode.appendChild(triNode);
             for inc = 1:size(ball.struts,1)
-                triangleNode = threeMfDoc.createElement('triangle');
+                triangleNode = xmlObject.createElement('triangle');
                 
                 val = sprintf('%0.0f',ball.struts(inc,1)-1);
                 triangleNode.setAttribute('v1',val);
-                
                 val = sprintf('%0.0f',ball.struts(inc,2)-1);
                 triangleNode.setAttribute('v2',val);
-                
                 val = sprintf('%0.0f',ball.struts(inc,3)-1);
                 triangleNode.setAttribute('v3',val);
                 
-                triNode.appendChild(triangleNode);
+                ballTriangles.appendChild(triangleNode);
             end
         end
-        function threeMfDoc = threeMfUnitObj(obj,threeMfDoc,resourcesNode,idNum)
-            % write a single unit cell as an object
+        function xmlObject = threeMfStrut(obj,xmlObject,strutVertices,strutTriangles)
+            % write a single strut as an object
             radius = 0.5; % as the transform contains the scaling for the strut diameter
-            numLinks = size(obj.struts,1);
+            point1 = [0,0,-0.5];
+            point2 = [0,0,0.5];
             
-            % setup the object
-            objNode = threeMfDoc.createElement('object');
-            objNode.setAttribute('id',num2str(idNum));
-            objNode.setAttribute('type','model');
-            resourcesNode.appendChild(objNode);
-            
-            meshNode = threeMfDoc.createElement('mesh');
-            objNode.appendChild(meshNode);
-            
-            verticesNode = threeMfDoc.createElement('vertices');
-            meshNode.appendChild(verticesNode);
-            
-
-            verts = cell(numLinks,1);
-            struts = cell(numLinks,1);
-            for i=1:numLinks
-                point1 = obj.vertices(obj.struts(i,1),:);
-                point2 = obj.vertices(obj.struts(i,2),:);
-                vector = point2-point1;
-                u1 = vector/norm(vector);
-                if u1(3)==1 || u1(3)==-1
-                    crosser = [0,1,0];
-                    
-                else
-                    crosser = [1,0,1];
-                end
+            vector = point2-point1;
+            u1 = vector/norm(vector);
+            crosser = [0,1,0];
+            v1 = cross(crosser,u1);
+            v1 = v1/norm(v1);
+            offset = radius*v1;
                 
-                v1 = cross(crosser,u1);
-                v1 = v1/norm(v1);
-                offset = radius*v1;
-                
-                % verts
-                vert1end = zeros(obj.resolution,3);
-                vert2end = zeros(obj.resolution,3);
-                for j=1:obj.resolution
-                    Qrot1 = PLG.qGetRotQuaternion((j-1)*2*pi/obj.resolution, u1);
-                    absolutePointRotation = PLG.qRotatePoint(offset', Qrot1)';
-                    % end 1
-                    vert1end(j,:)=absolutePointRotation+point1;
-                    % end 2
-                    vert2end(j,:)=absolutePointRotation+point2;
-                end
-                verts{i} = [point1;vert1end;point2;vert2end];
-                
-                %struts
-                s1 = zeros(obj.resolution,3);
-                s2 = zeros(obj.resolution,3);
-                s3 = zeros(obj.resolution,3);
-                s4 = zeros(obj.resolution,3);
-                end1 = [1:obj.resolution]+1;
-                end2 = [1:obj.resolution]+obj.resolution+2;
-                end1 = circshift(end1,-1,2);
-                end2 = circshift(end2,-1,2);
-                for j=1:obj.resolution
-                    end1 = circshift(end1,1,2);
-                    end2 = circshift(end2,1,2);
-                    %middle point1 -> end 1
-                    s1(j,:) = [1,end1(2),end1(1)];
-                    %middle point2 -> end 2
-                    s2(j,:) = [obj.resolution+2,end2(1),end2(2)];
-                    %end1 -> end2
-                    s3(j,:) = [end1(1),end1(2),end2(1)];
-                    %end2 -> end1
-                    s4(j,:) = [end2(2),end2(1),end1(2)];
-                end
-                struts{i} = [s1;s2;s3;s4];
+            % verts
+            vert1end = zeros(obj.resolution,3);
+            vert2end = zeros(obj.resolution,3);
+            for j=1:obj.resolution
+                Qrot1 = PLG.qGetRotQuaternion((j-1)*2*pi/obj.resolution, u1);
+                absolutePointRotation = PLG.qRotatePoint(offset', Qrot1)';
+                % end 1
+                vert1end(j,:)=absolutePointRotation+point1;
+                % end 2
+                vert2end(j,:)=absolutePointRotation+point2;
             end
-            
-            %% join cells
-            strutsOut = [];
-            vertsOut = [];
-            count = 0;
-            for inc = 1:numLinks
-                strutsOut = [strutsOut;struts{i}+count];
-                count = max(strutsOut(:));
-                vertsOut = [vertsOut;verts{inc}];
+            vertsOut = [point1;vert1end;point2;vert2end];
+                
+            %struts
+            s1 = zeros(obj.resolution,3);
+            s2 = zeros(obj.resolution,3);
+            s3 = zeros(obj.resolution,3);
+            s4 = zeros(obj.resolution,3);
+            end1 = [1:obj.resolution]+1;
+            end2 = [1:obj.resolution]+obj.resolution+2;
+            end1 = circshift(end1,-1,2);
+            end2 = circshift(end2,-1,2);
+            for j=1:obj.resolution
+                end1 = circshift(end1,1,2);
+                end2 = circshift(end2,1,2);
+                %middle point1 -> end 1
+                s1(j,:) = [1,end1(2),end1(1)];
+                %middle point2 -> end 2
+                s2(j,:) = [obj.resolution+2,end2(1),end2(2)];
+                %end1 -> end2
+                s3(j,:) = [end1(1),end1(2),end2(1)];
+                %end2 -> end1
+                s4(j,:) = [end2(2),end2(1),end1(2)];
             end
+            strutCons = [s1;s2;s3;s4];
             
-            % make verts unique
-            [vertsOut,i,indexn]=uniquetol(vertsOut,1e-8,'ByRows',1,'DataScale',1);
-            strutsOut = indexn(strutsOut);
-            
-            %% write verts then connections
+            % write verts then connections
             for inc = 1:size(vertsOut,1)
-                vertexNode = threeMfDoc.createElement('vertex');
-              
+                vertexNode = xmlObject.createElement('vertex');
+                
                 val = sprintf('%3.8f',vertsOut(inc,1));
                 vertexNode.setAttribute('x',val);
-                
                 val = sprintf('%3.8f',vertsOut(inc,2));
                 vertexNode.setAttribute('y',val);
-                
                 val = sprintf('%3.8f',vertsOut(inc,3));
                 vertexNode.setAttribute('z',val);
                 
-                verticesNode.appendChild(vertexNode);
+                strutVertices.appendChild(vertexNode);
             end
-            triNode = threeMfDoc.createElement('triangles');
-            meshNode.appendChild(triNode);
-            for inc = 1:size(strutsOut,1)
-                triangleNode = threeMfDoc.createElement('triangle');
+
+            for inc = 1:size(strutCons,1)
+                triangleNode = xmlObject.createElement('triangle');
                 
-                val = sprintf('%0.0f',strutsOut(inc,1)-1);
+                val = sprintf('%0.0f',strutCons(inc,1)-1);
                 triangleNode.setAttribute('v1',val);
-                
-                val = sprintf('%0.0f',strutsOut(inc,2)-1);
+                val = sprintf('%0.0f',strutCons(inc,2)-1);
                 triangleNode.setAttribute('v2',val);
-                
-                val = sprintf('%0.0f',strutsOut(inc,3)-1);
+                val = sprintf('%0.0f',strutCons(inc,3)-1);
                 triangleNode.setAttribute('v3',val);
                 
-                triNode.appendChild(triangleNode);
+                strutTriangles.appendChild(triangleNode);
             end
         end
-        function threeMfDoc = threeMfreplicate_unit(obj,threeMfDoc,resourcesNode,idRef,newId)
-            % for every transform write it to the file in a object that holds every component of the
-            % struts
-            
-            % setup the object
-            objNode = threeMfDoc.createElement('object');
-            objNode.setAttribute('id',num2str(newId));
-            objNode.setAttribute('type','model');
-            resourcesNode.appendChild(objNode);
-            
-            componentsNode = threeMfDoc.createElement('components');
-            objNode.appendChild(componentsNode);
-            
-            numTransform = size(obj.transform,1);
-            for inc = 1:numTransform
-                componentNode = threeMfDoc.createElement('component');
-                componentNode.setAttribute('objectid',num2str(idRef));
-                
-                currentTransform = obj.transform(inc,:);
+        function xmlObject = threeMfStrutReplicate(obj,xmlObject,strutComponent,copyObjId)
+            % for every strut generate a transform and then write out said
+            % transform
+            numStruts = size(obj.struts,1);
+            for inc = 1:numStruts
+                % convert a strut to a transform
+                currentTransform = custom2tramsform(obj,inc);
                 str = sprintf('%5.5f ',currentTransform);
                 str(end) = [];
+                
+                componentNode = xmlObject.createElement('component');
+                componentNode.setAttribute('objectid',num2str(copyObjId));
                 componentNode.setAttribute('transform',str);
-                componentsNode.appendChild(componentNode);
+                strutComponent.appendChild(componentNode);
             end
         end
-        function threeMfDoc = threeMfreplicate_Ball(obj,threeMfDoc,resourcesNode,idRef,newId)
+        function xmlObject = threeMfBallReplicate(obj,xmlObject,ballComponent,copyObjId)
             % write the ball locations
-            
-            % setup the object
-            objNode = threeMfDoc.createElement('object');
-            objNode.setAttribute('id',num2str(newId));
-            objNode.setAttribute('type','model');
-            resourcesNode.appendChild(objNode);
-            
-            componentsNode = threeMfDoc.createElement('components');
-            objNode.appendChild(componentsNode);
-            numTransform =size(obj.transform,1);
-            % from all the transforms determine the vertices
-            verts = [];
-            points = [obj.vertices,[1;1]];
-            for inc = 1:numTransform
-                squareTransform = flat2squareTransform(obj,inc);
-                newVerts = points*squareTransform;
-                verts = [verts;newVerts(:,1:3)];
-            end
-            verts = unique(verts,'rows');
-            % for each vertex write out a transform
-            for inc = 1:size(verts,1)
-                componentNode = threeMfDoc.createElement('component');
-                componentNode.setAttribute('objectid',num2str(idRef));
-                x = verts(inc,1);
-                y = verts(inc,2);
-                z = verts(inc,3);
-                scaler = obj.strutDiameter(inc)/2;
+            for inc = 1:length(obj.sphereDiameter)
+                point = obj.vertices(inc,:);
+                currentTransform = eye(4)*obj.sphereDiameter(inc)/2;
+                currentTransform(4,1:3) = point;
+                currentTransform(:,4) = [];
+                str = sprintf('%5.5f ',currentTransform');
+                str(end) = [];
                 
-                % scale matrix
-                scaler = [scaler,0 ,0 ,0;...
-                          0 ,scaler,0 ,0;...
-                          0 ,0 ,scaler,0;...
-                          0 ,0 ,0 ,1];
-                % translate matrix
-                translateMatrix = [1,0 ,0 ,0;...
-                                   0 ,1,0 ,0;...
-                                   0 ,0 ,1,0;...
-                                   x ,y ,z,1];
-                fullMatrix = scaler*translateMatrix;
-                fullMatrix(:,4) = []; % remove values not written to 3mf file
-                str = sprintf('%5.5f ', fullMatrix');
+                componentNode = xmlObject.createElement('component');
+                componentNode.setAttribute('objectid',num2str(copyObjId));
                 componentNode.setAttribute('transform',str);
-                componentsNode.appendChild(componentNode);
+                ballComponent.appendChild(componentNode);
             end
+        end
+        function transform = custom2tramsform(obj,inc)
+            verts = [0,0,-0.5;0,0,0.5];
+            thirdPoint = verts(1,:)+[0.5,0,0];
+            forthPoint = verts(2,:)+[0,0.5,0];
+            originalPoints = [verts(1,:),1;verts(2,:),1;thirdPoint,1;forthPoint,1];
+            
+            point1 = obj.vertices(obj.struts(inc,1),:);
+            point2 = obj.vertices(obj.struts(inc,2),:);
+            vector = point2-point1;
+            u = vector/norm(vector);
+            if abs(u(3))==1
+                    crosser = [1,0,0];
+                else % perfect z or any other vector
+                    crosser = [0,0,1];
+            end
+            v = cross(crosser,u);
+            v = v/norm(v);
+            offset = obj.strutDiameter(inc)*v/2;
+            
+            point3 = point1+offset;
+            vector = point3-point1;
+            w = vector/norm(vector);
+            x = cross(w,u);
+            x = x/norm(x);
+            offset = obj.strutDiameter(inc)*x/2;
+            point4 = point2-offset;
+            
+            newPoints = [point1,1;point2,1;point3,1;point4,1;];
+            affine = originalPoints\newPoints;
+            transform = [affine(1,1:3),affine(2,1:3),affine(3,1:3),affine(4,1:3)];
         end
     end
     methods (Static) % quaternian methods
@@ -1180,6 +910,5 @@ classdef PLG
             Q = PLG.qMul( Qrotation, Q1, PLG.qInv( Qrotation ) );
             Protated = Q(2:4);
         end
-    end
-    
+    end 
 end
