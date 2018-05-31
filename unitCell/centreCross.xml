@@ -1,40 +1,20 @@
 <?xml version="1.0" encoding="utf-8"?>
 <mesh>
    <vertices>
-     <vertex x="-0.5" y="-0.5" z="-0.5"/>
-     <vertex x="-0.5" y="-0.5" z="0.5"/>
-     <vertex x="0.5" y="-0.5" z="0.5"/>
-     <vertex x="0.5" y="-0.5" z="-0.5"/>
-     <vertex x="0.5" y="0.5" z="-0.5"/>
-     <vertex x="0.5" y="0.5" z="0.5"/>
-     <vertex x="-0.5" y="0.5" z="0.5"/>
-     <vertex x="-0.5" y="0.5" z="-0.5"/>
-     <vertex x="0" y="0" z="0"/>
-     <vertex x="-0.5" y="-0.5" z="0"/>
-     <vertex x="0" y="-0.5" z="0.5"/>
-     <vertex x="0.5" y="-0.5" z="0"/>
-     <vertex x="0" y="-0.5" z="-0.5"/>
-     <vertex x="0" y="-0.5" z="0"/>
-     <vertex x="-0.5" y="0.5" z="0"/>
-     <vertex x="-0.5" y="0" z="0.5"/>
-     <vertex x="-0.5" y="0" z="-0.5"/>
-     <vertex x="-0.5" y="0" z="0"/>
-     <vertex x="0.5" y="0.5" z="0"/>
-     <vertex x="0" y="0.5" z="0.5"/>
-     <vertex x="0" y="0.5" z="-0.5"/>
-     <vertex x="0" y="0.5" z="0"/>
-     <vertex x="0.5" y="0" z="0.5"/>
-     <vertex x="0.5" y="0" z="-0.5"/>
-     <vertex x="0.5" y="0" z="0"/>
-     <vertex x="0" y="0" z="-0.5"/>
-     <vertex x="0" y="0" z="0.5"/>
+      <vertex x="-0.5" y="0" z="0"/>
+      <vertex x="0" y="-0.5" z="0"/>
+      <vertex x="0" y="0" z="-0.5"/>
+      <vertex x="0" y="0" z="0"/>
+      <vertex x="0" y="0" z="0.5"/>
+      <vertex x="0" y="0.5" z="0"/>
+      <vertex x="0.5" y="0" z="0"/>
    </vertices>
    <struts name="centreCross" type="beam">
-     <strut v1="9" v2="14"/>
-     <strut v1="9" v2="18"/>
-     <strut v1="22" v2="9"/>
-     <strut v1="25" v2="9"/>
-     <strut v1="9" v2="26"/>
-     <strut v1="27" v2="9"/>
+      <strut v1="1" v2="4"/>
+      <strut v1="2" v2="4"/>
+      <strut v1="3" v2="4"/>
+      <strut v1="4" v2="5"/>
+      <strut v1="4" v2="6"/>
+      <strut v1="4" v2="7"/>
    </struts>
- </mesh>
+</mesh>

@@ -1,19 +1,19 @@
 <?xml version="1.0" encoding="utf-8"?>
 <mesh>
    <vertices>
-     <vertex x="-0.5" y="-0.5" z="-0.5"/>
-     <vertex x="-0.5" y="-0.5" z="0.5"/>
-     <vertex x="0.5" y="-0.5" z="0.5"/>
-     <vertex x="0.5" y="-0.5" z="-0.5"/>
-     <vertex x="0.5" y="0.5" z="-0.5"/>
-     <vertex x="0.5" y="0.5" z="0.5"/>
-     <vertex x="-0.5" y="0.5" z="0.5"/>
-     <vertex x="-0.5" y="0.5" z="-0.5"/>
+      <vertex x="-0.5" y="-0.5" z="-0.5"/>
+      <vertex x="-0.5" y="-0.5" z="0.5"/>
+      <vertex x="-0.5" y="0.5" z="-0.5"/>
+      <vertex x="-0.5" y="0.5" z="0.5"/>
+      <vertex x="0.5" y="-0.5" z="-0.5"/>
+      <vertex x="0.5" y="-0.5" z="0.5"/>
+      <vertex x="0.5" y="0.5" z="-0.5"/>
+      <vertex x="0.5" y="0.5" z="0.5"/>
    </vertices>
    <struts name="zRods" type="beam">
-     <strut v1="1" v2="2"/>
-     <strut v1="3" v2="4"/>
-     <strut v1="5" v2="6"/>
-     <strut v1="7" v2="8"/>
+      <strut v1="1" v2="2"/>
+      <strut v1="3" v2="4"/>
+      <strut v1="5" v2="6"/>
+      <strut v1="7" v2="8"/>
    </struts>
- </mesh>
+</mesh>
