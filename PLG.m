@@ -39,17 +39,19 @@ classdef PLG
                 case 0
                     % generate a new lattice
                     disp('generating a lattice from scratch');
-                    obj.sphereAddition = false;
                 case 1
                     % import a custom lattice file containing beam and node
                     % definitions see load function for more information
                     disp('Loading an existing file');
                     obj = load(obj,varargin{1});
-                    obj.sphereAddition = true;
+                    
                     obj.unitName = varargin{1};
                 otherwise
                     error('Incorrect number of inputs');
             end
+            obj.sphereAddition = false;
+            obj.baseFlat = false;
+            obj.origin=[0,0,0];
         end
         function obj = set(obj,varargin)
             % set a value in the PLG that can be edited
@@ -531,6 +533,19 @@ classdef PLG
             % 3. write the locations of the above as a series of
             % transformations
             
+            % setup object ID
+            ID.strut = '0'; % generic strut
+            ID.ball =  '1';
+            if obj.baseFlat
+                ID.flatBall = '2';
+                ID.componentsStrut = '3';
+                ID.componentsBall = '4';
+                ID.componentsFlatBall = '5';
+            else
+                ID.componentsStrut = '2';
+                ID.componentsBall = '3';
+            end
+            
             %create an object to hold xml and then generate its structure
             xmlObject = com.mathworks.xml.XMLUtils.createDocument('model');
             model = xmlObject.getDocumentElement;
@@ -541,12 +556,12 @@ classdef PLG
             model.appendChild(resources);
             
             strutObject = xmlObject.createElement('object');
-            strutObject.setAttribute('id','0');
+            strutObject.setAttribute('id',ID.strut);
             strutObject.setAttribute('type','model');
             resources.appendChild(strutObject);
             
             ballObject = xmlObject.createElement('object');
-            ballObject.setAttribute('id','1');
+            ballObject.setAttribute('id',ID.ball);
             ballObject.setAttribute('type','model');
             resources.appendChild(ballObject);
             
@@ -569,42 +584,74 @@ classdef PLG
             % write the individual strut and ball
             xmlObject = threeMfStrut(obj,xmlObject,strutVertices,strutTriangles);
             xmlObject = threeMfBall(obj,xmlObject,ballVertices,ballTriangles);
-            
+            % if required generate the flat base ball and renumber
+            if obj.baseFlat
+                % use a flat base
+                flatBallObject = xmlObject.createElement('object');
+                flatBallObject.setAttribute('id',ID.flatBall);
+                flatBallObject.setAttribute('type','model');
+                resources.appendChild(flatBallObject);
+                
+                flatBallMesh = xmlObject.createElement('mesh');
+                flatBallObject.appendChild(flatBallMesh);
+                
+                flatBallVertices = xmlObject.createElement('vertices');
+                flatBallMesh.appendChild(flatBallVertices);
+                flatBallTriangles = xmlObject.createElement('triangles');
+                flatBallMesh.appendChild(flatBallTriangles);
+                
+                % write the flat ball object
+                xmlObject = threemfFlatBall(obj,xmlObject,flatBallVertices,flatBallTriangles);
+            end
             
             % write out the replications that goes under components
             %replicate the struts throughout space
             strutObject1 = xmlObject.createElement('object');
-            strutObject1.setAttribute('id','2');
+            strutObject1.setAttribute('id',ID.componentsStrut);
             strutObject1.setAttribute('type','model');
             resources.appendChild(strutObject1);
             strutComponent = xmlObject.createElement('components');
             strutObject1.appendChild(strutComponent);
             
-            xmlObject = threeMfStrutReplicate(obj,xmlObject,strutComponent,0);
+            xmlObject = threeMfStrutReplicate(obj,xmlObject,strutComponent,ID.strut);
             
             if obj.sphereAddition
                 ballObject1 = xmlObject.createElement('object');
-                ballObject1.setAttribute('id','3');
+                ballObject1.setAttribute('id',ID.componentsBall);
                 ballObject1.setAttribute('type','model');
                 resources.appendChild(ballObject1);
                 ballComponent = xmlObject.createElement('components');
                 ballObject1.appendChild(ballComponent);
-            
-                xmlObject = threeMfBallReplicate(obj,xmlObject,ballComponent,1);
+                if obj.baseFlat
+                    flatBallObject1 = xmlObject.createElement('object');
+                    flatBallObject1.setAttribute('id',ID.componentsFlatBall);
+                    flatBallObject1.setAttribute('type','model');
+                    resources.appendChild(flatBallObject1);
+                    flatBallComponent = xmlObject.createElement('components');
+                    flatBallObject1.appendChild(flatBallComponent);
+                    
+                    xmlObject = threeMfFlatBallReplicate(obj,xmlObject,ballComponent,flatBallComponent,ID.ball,ID.flatBall);
+                else
+                    xmlObject = threeMfBallReplicate(obj,xmlObject,ballComponent,1);
+                end
             end
-            
             
             % write out the build section which states that the components
             % should be put in the assembly
             build = xmlObject.createElement('build');
             model.appendChild(build);
             item = xmlObject.createElement('item');
-            item.setAttribute('objectid','2');
+            item.setAttribute('objectid',ID.componentsStrut);
             build.appendChild(item);
             if obj.sphereAddition
                 item = xmlObject.createElement('item');
-                item.setAttribute('objectid','3');
+                item.setAttribute('objectid',ID.componentsBall);
                 build.appendChild(item);
+                if obj.baseFlat
+                    item = xmlObject.createElement('item');
+                    item.setAttribute('objectid',ID.componentsFlatBall);
+                    build.appendChild(item);
+                end
             end
             % gather the other supplementary files that are required to make a 3mf file
             mkdir('_rels');
@@ -725,6 +772,42 @@ classdef PLG
                 ballTriangles.appendChild(triangleNode);
             end
         end
+        function xmlObject = threemfFlatBall(obj,xmlObject,ballVertices,ballTriangles)
+            % write a single ball as an object
+            % write the vertexs
+            [x,y,z]=sphere(obj.sphereResolution); %create sphere with higher accuracy
+            test = z<0;
+            z(test)=-1;
+            ball.struts= convhull([x(:), y(:), z(:)]); %create triangle links
+            ball.vertices=[x(:),y(:),z(:)]; %store the points
+            ball.vertices = ball.vertices;
+            for inc = 1:size(ball.vertices,1)
+                vertexNode = xmlObject.createElement('vertex');
+              
+                val = sprintf('%3.8f',ball.vertices(inc,1));
+                vertexNode.setAttribute('x',val);
+                val = sprintf('%3.8f',ball.vertices(inc,2));
+                vertexNode.setAttribute('y',val);
+                val = sprintf('%3.8f',ball.vertices(inc,3));
+                vertexNode.setAttribute('z',val);
+                ballVertices.appendChild(vertexNode);
+            end
+            
+            %write the connections
+            for inc = 1:size(ball.struts,1)
+                triangleNode = xmlObject.createElement('triangle');
+                
+                val = sprintf('%0.0f',ball.struts(inc,1)-1);
+                triangleNode.setAttribute('v1',val);
+                val = sprintf('%0.0f',ball.struts(inc,2)-1);
+                triangleNode.setAttribute('v2',val);
+                val = sprintf('%0.0f',ball.struts(inc,3)-1);
+                triangleNode.setAttribute('v3',val);
+                
+                ballTriangles.appendChild(triangleNode);
+            end
+            
+        end
         function xmlObject = threeMfStrut(obj,xmlObject,strutVertices,strutTriangles)
             % write a single strut as an object
             radius = 0.5; % as the transform contains the scaling for the strut diameter
@@ -812,7 +895,7 @@ classdef PLG
                 str(end) = [];
                 
                 componentNode = xmlObject.createElement('component');
-                componentNode.setAttribute('objectid',num2str(copyObjId));
+                componentNode.setAttribute('objectid',copyObjId);
                 componentNode.setAttribute('transform',str);
                 strutComponent.appendChild(componentNode);
             end
@@ -828,9 +911,34 @@ classdef PLG
                 str(end) = [];
                 
                 componentNode = xmlObject.createElement('component');
-                componentNode.setAttribute('objectid',num2str(copyObjId));
+                componentNode.setAttribute('objectid',copyObjId);
                 componentNode.setAttribute('transform',str);
                 ballComponent.appendChild(componentNode);
+            end
+        end
+        function xmlObject = threeMfFlatBallReplicate(obj,xmlObject,ballComponent,flatBallComponent,copyObjIdBall,copyObjIdFlat)
+            % write the ball locations
+            minZ = min(obj.vertices(:,3));
+            for inc = 1:length(obj.sphereDiameter)
+                point = obj.vertices(inc,:);
+                currentTransform = eye(4)*obj.sphereDiameter(inc)/2;
+                currentTransform(4,1:3) = point;
+                currentTransform(:,4) = [];
+                str = sprintf('%5.5f ',currentTransform');
+                str(end) = [];
+                if abs(minZ-point(3))<1e-5
+                    % use flat ball
+                    componentNode = xmlObject.createElement('component');
+                    componentNode.setAttribute('objectid',copyObjIdFlat);
+                    componentNode.setAttribute('transform',str);
+                    flatBallComponent.appendChild(componentNode);
+                else
+                    % use normal ball
+                    componentNode = xmlObject.createElement('component');
+                    componentNode.setAttribute('objectid',copyObjIdBall);
+                    componentNode.setAttribute('transform',str);
+                    ballComponent.appendChild(componentNode);
+                end
             end
         end
         function transform = custom2tramsform(obj,inc)
