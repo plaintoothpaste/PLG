@@ -1,11 +1,11 @@
 Orriginal author: Matthew McMillan,
-DATE: 07/05/18
+DATE: 07/06/18
 # description
 This program takes a variety of inputs and writes a lattice file in various output formats for use in other programs. The use of the plgBatch file simplifies the creation of a large number of lattice(s). Example implementations is present in the complex example file.
 ## Methods
 The following is a list of methods and a quick overview of their function, it should obvious from the name what it is they do.
 - PLG: Creates a PLG object, 1 input loads a custom file.
-- set: used to set parameters in the PLG using name value pairs
+- set: used to set properties in the PLG using name value pairs
 - defineUnit: used to define the individual unit cell
 - cellReplication: replicates a unit cell based on inputs
 - cleanLattice: removes duplicate vertices or faces and orders the vertices in Z
@@ -15,6 +15,20 @@ The following is a list of methods and a quick overview of their function, it sh
 - plus:   combines an existing PLG object into another plg object usefull for generating complex lattice shapes
 - plot: displays a rendering of the beam model that represents the lattice.
 - save: this method is in its own method group and each sub save method will be named according to its save out type. Eg saveStl saves out stl format.
+## Properties
+properties of the PLG are defiend using the set method to ensure that only trhe correct type can be used.
+```
+obj = set(obj,'propertyName',value)
+```
+* resolution - resolution of the struts - scaler integer
+* strutDiameter - strut diameter - scaler float
+* sphereAddition - determines wheter to add spheres to the structure - logical (true or false)
+* sphereResolution - required if sphereAddition is true
+* sphereDiameter - required if sphereAddition is true
+* baseFlat - flattens the spheres at minimum z height vertices to create a flat base for supports - logical (true or false) - does nothing if sphereAddition is false
+* unitSize - specifies the size of a single unit in a lattice - 3x1 vector of floats
+* replications - specifies the number of copies of the unit cell - 3x1 vector of integers
+* origin starting location for the centre of the initial unit cell - 3x1 vector of floats - default value is [0,0,0]
 
 ## generating a unit cell
 See subfolder unitCell in the PLG code
@@ -23,9 +37,7 @@ This class is a submethod of the PLG and enables the addition of support pins.
 it is not intended as a lattice Generating code but instead will load a custom file saved out from the regular PLG. once this is done the following functions can be used:
 - addSupport - takes a custom file, support strutDiameter, support sphereDiameter, critical incline and search range(as a percentage from the base up).
 - padSupport - extends supports a defined a distance below the minimum z.
-This class is a subclass for the PLG method that adds support structures to a existing custom/xlsx file
 
-The initial call determines which vertices to add as supports based on incline and distance (relative to total height) from the lowest vertex. the padSupport creates vertical rods with a given diameter essentially rising the structure up on pin supports.
 ## Examples
 A 3x4x5 BCC lattice with x struts, a 0.3mm strut diameter, 4mm unit cell and 0.5mm ball diameter with its origin moved by 6,7,8 and then saved as a stl (12 facet resolution) and 3mf file with a resolution of 30. See complex example for the use of translation, rotation and plus.
 
@@ -35,20 +47,18 @@ obj = set(obj,'resolution',12);
 obj = set(obj,'strutDiameter',0.3);
 obj = set(obj,'unitSize',[4,4,4]);
 obj = set(obj,'sphereAddition',true);
+obj = set(obj,'baseFlat',true);
+obj = set(obj,'sphereResolution',12);
 obj = set(obj,'sphereDiameter',0.5);
 obj = set(obj,'origin',[6,7,8]);
 obj = set(obj,'replications',[3,4,5]);
-
 obj = defineUnit(obj,{'bcc','xRods'});
 obj = cellReplication(obj);
 obj = cleanLattice(obj);
-
 saveStl(obj,'exampleOut.stl');
 
 obj = set(obj,'resolution',30);
-obj = defineUnit(obj,{'bcc','xRods'});
-obj = cellReplication(obj);
-obj = cleanLattice(obj);
+obj = set(obj,'sphereResolution',30);
 save3mf(obj,'exampleOut.3mf');
 ```
 # SubClass splitStrut
