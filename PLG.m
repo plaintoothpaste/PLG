@@ -10,6 +10,7 @@ classdef PLG
         sphereAddition;
         sphereResolution;
         sphereDiameter;
+        baseFlat; % logical value that only matters if sphere addition is also true, deforms sphere to have a flat base at minZ
         
         vertices;
         struts;
@@ -52,12 +53,15 @@ classdef PLG
         end
         function obj = set(obj,varargin)
             % set a value in the PLG that can be edited
-            allowable={'resolution','strutDiameter','sphereAddition','sphereResolution','sphereDiameter',...
-                'unitSize','replications','origin'};
-            classType = {'double','double','logical','double','double','double','double','double'};
+            allowable={'resolution','strutDiameter','sphereAddition',...
+                'sphereResolution','sphereDiameter','unitSize',...
+                'replications','origin','baseFlat'};
+            classType = {'double','double','logical',...
+                'double','double','double',...
+                'double','double','logical'};
             attribute = {{'scalar','nonempty'},{'scalar','nonempty'},{'scalar','nonempty'},...
                 {'scalar','nonempty'},{'scalar','nonempty'},{'size',[1,3],'nonempty'},...
-                {'size',[1,3],'nonempty'},{'size',[1,3],'nonempty'}};
+                {'size',[1,3],'nonempty'},{'size',[1,3],'nonempty'},{'scalar','nonempty'}};
             % setup parser
             p = inputParser();
             for inc = 1:length(allowable)
@@ -430,13 +434,28 @@ classdef PLG
                 return;
             end
             %write the spheres
-            [x,y,z]=sphere(obj.sphereResolution); %create sphere with higher accuracy
+            [x,y,z]=sphere(obj.sphereResolution); %create sphere 
             ball.struts= convhull([x(:), y(:), z(:)]); %create triangle links
             sizer = size(ball.struts,1);
             ball.vertices=[x(:),y(:),z(:)]; %store the points
+            if obj.baseFlat
+                shouldBeFlat = abs(obj.vertices(:,3)-min(obj.vertices(:,3)))<1e-5;
+                test = z<0;
+                z(test)=-1;
+                flatBase.struts = ball.struts;
+                flatBase.vertices = [x(:),y(:),z(:)];
+            else
+                shouldBeFlat=false(numVertices,1);
+            end
+            
             for inc = 1:numVertices
                 if obj.sphereDiameter(inc)~=0
-                    writeSingleSphere(obj,fid,ball,sizer,inc); % adds a single strut to the stl file
+                    if ~shouldBeFlat(inc)
+                        writeSingleSphere(obj,fid,ball,sizer,inc); % adds a single sphere to the stl file
+                    else
+                        writeSingleSphere(obj,fid,flatBase,sizer,inc); % adds a flat based sphere to the stl file
+                    end
+                    
                 end
             end
             fclose(fid);
