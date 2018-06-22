@@ -632,7 +632,7 @@ classdef PLG
                     
                     xmlObject = threeMfFlatBallReplicate(obj,xmlObject,ballComponent,flatBallComponent,ID.ball,ID.flatBall);
                 else
-                    xmlObject = threeMfBallReplicate(obj,xmlObject,ballComponent,1);
+                    xmlObject = threeMfBallReplicate(obj,xmlObject,ballComponent,ID.ball);
                 end
             end
             

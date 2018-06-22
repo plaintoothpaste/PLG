@@ -97,3 +97,5 @@ obj = padSupport(obj,0.9,diameter/4,0); % extend/add support by a given length w
 obj = set(obj,'sphereResolution',12);
 obj = set(obj,'resolution',20);
 save3mf(obj,'complexLatticeSupported.3mf');
+obj = set(obj,'baseFlat',true);
+save3mf(obj,'complexLatticeSupportedFlatBall.3mf');
