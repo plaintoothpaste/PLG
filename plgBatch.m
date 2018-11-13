@@ -16,25 +16,25 @@ classdef plgBatch < matlab.unittest.TestCase
         outputFolder = 'C:\scratch\CODE\tmp\batchOut'; %'./batchOut'
         useSpheres = true;
         supportDia = 0.25;
+        useBaseFlat = true;
     end
     properties (TestParameter)
         % every combination of properties will be produced must be a cell
         % input
-        saveOut = {'all'};
-        unitCell = {{'verticalFaceRods'},{'verticalFaceRods','zRods'},...
-            {'bcc'},{'bcc','zRods'}};
-        resolution = {10};
+        saveOut = {'3mf'};
+        unitCell = {{'bcc'}};
+        resolution = {15};
         
-        unitSizeX = {4.5,9};
-        unitSizeY = {4.5,9};
-        unitSizeZ = {4.5,9};
+        unitSizeX = {4};
+        unitSizeY = {4};
+        unitSizeZ = {4};
         
-        repsX = num2cell(1:5);
-        repsY = num2cell(1:5);
-        repsZ = num2cell(1:5);
+        repsX = num2cell(5);
+        repsY = num2cell(5);
+        repsZ = num2cell(8);
         
-        strut_dia = num2cell(0.5:0.5:1.5);
-        ball_dia = num2cell(0.5:0.5:2);
+        strut_dia = num2cell([0.5,0.6,1,1.2]);
+        ball_dia = num2cell([0.5,0.6,1,1.2]);
         
     end
     methods (Test, ParameterCombination='exhaustive')
@@ -51,12 +51,17 @@ classdef plgBatch < matlab.unittest.TestCase
             plgObj = set(plgObj,'unitSize',[unitSizeX,unitSizeY,unitSizeZ]);
             plgObj = set(plgObj,'origin',[0,0,0]);
             plgObj = set(plgObj,'replications',[repsX,repsY,repsZ]);
-            
+            plgObj = set(plgObj,'baseFlat',obj.useBaseFlat);
             plgObj = defineUnit(plgObj,unitCell);
             plgObj = cellReplication(plgObj);
             plgObj = cleanLattice(plgObj);
+            if obj.useSpheres
+                fileName = sprintf('unit_%s d_%04.1f usx_%04.1f usy_%04.1f usz_%04.1f rx_%04.1f ry_%04.1f rz_%04.1f_bd_%04.1f',plgObj.unitName,strut_dia,unitSizeX,unitSizeY,unitSizeZ,repsX,repsY,repsZ,ball_dia);
+            else
+                fileName = sprintf('unit_%s d_%04.1f usx_%04.1f usy_%04.1f usz_%04.1f rx_%04.1f ry_%04.1f rz_%04.1f',plgObj.unitName,strut_dia,unitSizeX,unitSizeY,unitSizeZ,repsX,repsY,repsZ);
+            end
             
-            fileName = sprintf('unit_%s d_%04.1f usx_%04.1f usy_%04.1f usz_%04.1f rx_%04.1f ry_%04.1f rz_%04.1f',plgObj.unitName,strut_dia,unitSizeX,unitSizeY,unitSizeZ,repsX,repsY,repsZ);
+            
             fileLocation = sprintf('%s%s%s',obj.outputFolder,filesep,fileName);
             switch saveOut
                 case 'stl'
@@ -86,7 +91,7 @@ classdef plgBatch < matlab.unittest.TestCase
             plgObj = set(plgObj,'unitSize',[unitSizeX,unitSizeX,unitSizeX]);
             plgObj = set(plgObj,'origin',[0,0,0]);
             plgObj = set(plgObj,'replications',[repsX,repsY,repsZ]);
-            
+            plgObj = set(plgObj,'baseFlat',obj.useBaseFlat);
             plgObj = defineUnit(plgObj,unitCell);
             plgObj = cellReplication(plgObj);
             plgObj = cleanLattice(plgObj);
@@ -119,7 +124,7 @@ classdef plgBatch < matlab.unittest.TestCase
             plgObj = set(plgObj,'unitSize',[unitSizeX,unitSizeX,unitSizeX]);
             plgObj = set(plgObj,'origin',[0,0,0]);
             plgObj = set(plgObj,'replications',[repsX,repsX,repsX]);
-            
+            plgObj = set(plgObj,'baseFlat',obj.useBaseFlat);
             plgObj = defineUnit(plgObj,unitCell);
             plgObj = cellReplication(plgObj);
             plgObj = cleanLattice(plgObj);
@@ -152,7 +157,7 @@ classdef plgBatch < matlab.unittest.TestCase
             plgObj = set(plgObj,'unitSize',[unitSizeX,unitSizeX,unitSizeX]);
             plgObj = set(plgObj,'origin',[0,0,0]);
             plgObj = set(plgObj,'replications',[repsX,repsX,repsX]);
-            
+            plgObj = set(plgObj,'baseFlat',obj.useBaseFlat);
             plgObj = defineUnit(plgObj,unitCell);
             plgObj = cellReplication(plgObj);
             plgObj = cleanLattice(plgObj);

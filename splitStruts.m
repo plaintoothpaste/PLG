@@ -3,6 +3,7 @@ classdef splitStruts < PLG
     % file. splitStruts will identify these and split the beams into 2
     
     properties
+        
     end
     
     methods
@@ -14,20 +15,21 @@ classdef splitStruts < PLG
             % destroy unique diameter data
             
             obj = obj@PLG(file);
-            if ~strcmp(obj.unitType,'custom')
-                error('splitting can only be performed on custom files')
-            end
+%             if ~strcmp(obj.unitType,'custom')
+%                 error('splitting can only be performed on custom files')
+%             end
             maxInd = 0; % current highest index in strutsOut
             lengthstruts = 0; % current length of strutsOut
             numstruts = length(obj.struts);
             vertsOut = [];
             strutsOut = [];
-            splitStruts = cell(numstruts,1);
+            diamsOut = [];
+            spStruts = cell(numstruts,1);
             % get tol
             obj = getTolerance(obj);
             tol = obj.tolerance;
             struts2Check = 1:numstruts;
-            boundingBox = PLG.getBound(obj.vertices,obj.struts,struts2Check);
+            boundingBox = splitStruts.getBound(obj.vertices,obj.struts,struts2Check);
             %% main loop
             for inc=1:numstruts
                 % all struts with intersecting BB
@@ -36,27 +38,30 @@ classdef splitStruts < PLG
                 currentBB = boundingBox{inc};
                 currentP1 = obj.vertices(obj.struts(inc,1),:);
                 currentP2 = obj.vertices(obj.struts(inc,2),:);
-                isIntersect = PLG.findBbIntersect(currentBB,boundingBox(struts2CheckTmp));
+                currentDia = obj.strutDiameter(inc);
+                isIntersect = splitStruts.findBbIntersect(currentBB,boundingBox(struts2CheckTmp));
                 potentialStruts = struts2CheckTmp(isIntersect);
                 % remove that are already connected properly
-                potentialStruts = PLG.removeNormalConStruts(currentP1,currentP2,potentialStruts,obj.struts,obj.vertices,tol);
-                potentialStruts = PLG.removeParralelStruts(currentP1,currentP2,potentialStruts,obj.struts,obj.vertices);
+                potentialStruts = splitStruts.removeNormalConStruts(currentP1,currentP2,potentialStruts,obj.struts,obj.vertices,tol);
+                potentialStruts = splitStruts.removeParralelStruts(currentP1,currentP2,potentialStruts,obj.struts,obj.vertices);
                 % check if any struts are already split if so grab their sub BB and
                 % eleminate any that do not intersect
-                % potentialStruts = PLG.findSplitStrutBB(splitStruts,potentialStruts,currentBB,currentP1,currentP2,strutsOut,vertsOut,tol);
+                % potentialStruts = splitStruts.findSplitStrutBB(splitStruts,potentialStruts,currentBB,currentP1,currentP2,strutsOut,vertsOut,tol);
                 potentialStruts = [potentialStruts',ones(length(potentialStruts),1)];
                 if isempty(potentialStruts)
                     % no struts to break up
                     vertsOut = [vertsOut;currentP1;currentP2];
                     strutsOut = [strutsOut;maxInd+1,maxInd+2];
+                    diamsOut = [diamsOut;currentDia];
                     maxInd = maxInd+2;
                     lengthstruts = lengthstruts+1; % number of new struts
                 else
-                    [vertsTmpOut,strutsTmpOut] = PLG.findIntersect(currentP1,currentP2,...
+                    [vertsTmpOut,strutsTmpOut] = splitStruts.findIntersect(currentP1,currentP2,...
                         potentialStruts,obj.struts,obj.vertices,...
                         strutsOut,vertsOut,tol);
                     vertsOut = [vertsOut;vertsTmpOut];
                     strutsTmpOut = strutsTmpOut+maxInd;
+                    diamTmpOut = zeros(size(strutsTmpOut,1),1)*currentDia;
                     % debug: 
                     % patch('struts',obj.struts(inc,:),'Vertices',obj.vertices,'EdgeColor',[1,0,0]);
                     % patch('struts',obj.struts(potentialStruts,:),'Vertices',obj.vertices); hold on;
@@ -64,9 +69,10 @@ classdef splitStruts < PLG
 
                     maxInd = strutsTmpOut(end,2);
                     strutsOut = [strutsOut;strutsTmpOut];
+                    diamsOut = [diamsOut;diamTmpOut];
                     st = lengthstruts+1; % number of new struts
                     en = st+size(strutsTmpOut,1)-1;
-                    splitStruts{inc} = [st,en];
+                    spStruts{inc} = [st,en];
                     lengthstruts = en;
                 end
                 
@@ -74,11 +80,18 @@ classdef splitStruts < PLG
             %% final assignment and cleanup note that this destroys strut diameter
             obj.vertices = vertsOut;
             obj.struts = strutsOut;
-            % remake sphere and strut diams same as the first value
-            obj.strutDiameter = obj.strutDiameter(1);
-            obj.sphereDiameter = obj.sphereDiameter(1);
-            obj = addDiams(obj);
+            obj.strutDiameter = diamsOut;
+            obj.sphereDiameter = ones(size(obj.vertices,1),1);
             obj = cleanLattice(obj);
+        end
+    end
+    methods (Access=protected)
+        function obj = getTolerance(obj)
+            % get the shortest strut and divide by 1000
+            verts1 = obj.vertices(obj.struts(:,1),:);
+            verts2 = obj.vertices(obj.struts(:,2),:);
+            lengthVerts = sum(sqrt((verts1-verts2).^2),2);
+            obj.tolerance = min(lengthVerts)/10;
         end
     end
     methods (Static)
@@ -102,9 +115,9 @@ classdef splitStruts < PLG
             for inc = 1:numBB
                 checkBB = boundingBox{inc};
                 %check each dimension
-                inX = PLG.checkIn(currentBB(:,1),checkBB(:,1));
-                inY = PLG.checkIn(currentBB(:,2),checkBB(:,2));
-                inZ = PLG.checkIn(currentBB(:,3),checkBB(:,3));
+                inX = splitStruts.checkIn(currentBB(:,1),checkBB(:,1));
+                inY = splitStruts.checkIn(currentBB(:,2),checkBB(:,2));
+                inZ = splitStruts.checkIn(currentBB(:,3),checkBB(:,3));
                 
                 isIntersect(inc) = inX & inY & inZ;
             end
@@ -158,10 +171,10 @@ classdef splitStruts < PLG
                 for inc = strutsToReplace'
                     desired = [desired,splitStruts{inc}(1):splitStruts{inc}(2)];
                 end
-                boundingBox = PLG.getBound(vertsOut,strutsOut,desired);
-                isIntersect = PLG.findBbIntersect(currentBB,boundingBox);
+                boundingBox = splitStruts.getBound(vertsOut,strutsOut,desired);
+                isIntersect = splitStruts.findBbIntersect(currentBB,boundingBox);
                 potentialNewStruts = desired(isIntersect);
-                potentialNewStruts = PLG.removeNormalConStruts(currentP1,currentP2,potentialNewStruts,strutsOut,vertsOut,tol);
+                potentialNewStruts = splitStruts.removeNormalConStruts(currentP1,currentP2,potentialNewStruts,strutsOut,vertsOut,tol);
                 % dont need to remove parallel as these are already removed in whole strut check
                 if isempty(potentialNewStruts)
                     % nothing
@@ -188,7 +201,7 @@ classdef splitStruts < PLG
                     q0 = vertsOut(strutsOut(index,1),:);
                     q1 = vertsOut(strutsOut(index,2),:);
                 end
-                [dist,sc,p1Out,p2Out] = PLG.distBetween2Segment(p0, p1, q0, q1);
+                [dist,sc,p1Out,p2Out] = splitStruts.distBetween2Segment(p0, p1, q0, q1);
                 if dist<tol
                     coordinates(inc,:) = mean([p1Out;p2Out],1);
                     order(inc) = sc; % the larger the value the further the point is from p1

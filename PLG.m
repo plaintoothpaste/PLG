@@ -185,6 +185,7 @@ classdef PLG
                 points = [obj.vertices(obj.struts(inc,1),:);obj.vertices(obj.struts(inc,2),:)];
                 p = plot3(points(:,1),points(:,2),points(:,3),'Color',colours(inc,:));
                 p.MarkerFaceColor = [0.9,0.5,0]; p.MarkerEdgeColor = 'none';
+                p.Marker = 'o';
             end
             xlabel('x')
             ylabel('y')

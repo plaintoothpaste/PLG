@@ -71,7 +71,7 @@ Enables splitting of a bad custom file where beam do interesect but this is not 
   * squareUnitCell - uses only unitSizeX for all unit cell dimensions runs through all other **TestParameter**.
   * squareLattice - uses only unitSizeX and repsX
 3. click on run current test in the menu bar (ctrl+enter). Alternatively run the following command:
-```results = runtest(plgBatch,'squareLattice')```
+```results = run(plgBatch,'squareLattice')```
 4. Be patient matlab internally calculates the full factorial before begining to generate files this may take a while depending on the number of outputs
 
 ## make your own generation function
