@@ -21,20 +21,20 @@ classdef plgBatch < matlab.unittest.TestCase
     properties (TestParameter)
         % every combination of properties will be produced must be a cell
         % input
-        saveOut = {'3mf'};
-        unitCell = {{'bcc'}};
+        saveOut = {'custom'};
+        unitCell = {{'verticalFaceRods','zRods'}};
         resolution = {15};
         
-        unitSizeX = {4};
+        unitSizeX = {5}
         unitSizeY = {4};
-        unitSizeZ = {4};
+        unitSizeZ = {[100,25,4,1]};
         
-        repsX = num2cell(5);
-        repsY = num2cell(5);
-        repsZ = num2cell(8);
+        repsX = {1,2,5,10};
+        repsY = {4};
+        repsZ ={100,25,4,1};
         
-        strut_dia = num2cell([0.5,0.6,1,1.2]);
-        ball_dia = num2cell([0.5,0.6,1,1.2]);
+        strut_dia = num2cell(0.5);
+        ball_dia = num2cell(0.5);
         
     end
     methods (Test, ParameterCombination='exhaustive')
@@ -146,7 +146,7 @@ classdef plgBatch < matlab.unittest.TestCase
                     error('saveOut type:%s not supported',saveOut);
             end
         end
-        function simulationCompare(obj,saveOut,unitCell,resolution,unitSizeX,repsX,strut_dia)
+        function simulationCompare(obj,saveOut,unitCell,resolution,unitSizeX,repsX,repsZ,strut_dia)
             % modified version of square lattice that adds support
             plgObj = PLG();
             plgObj = set(plgObj,'resolution',resolution);
@@ -156,13 +156,13 @@ classdef plgBatch < matlab.unittest.TestCase
             plgObj = set(plgObj,'sphereResolution',resolution);
             plgObj = set(plgObj,'unitSize',[unitSizeX,unitSizeX,unitSizeX]);
             plgObj = set(plgObj,'origin',[0,0,0]);
-            plgObj = set(plgObj,'replications',[repsX,repsX,repsX]);
+            plgObj = set(plgObj,'replications',[repsX,repsX,repsZ]);
             plgObj = set(plgObj,'baseFlat',obj.useBaseFlat);
             plgObj = defineUnit(plgObj,unitCell);
             plgObj = cellReplication(plgObj);
             plgObj = cleanLattice(plgObj);
             
-            fileName = sprintf('unit_%s d_%04.1f us_%04.1f rep_%04.1f',plgObj.unitName,strut_dia,unitSizeX,repsX);
+            fileName = sprintf('unit_%s d_%04.1f us_%04.1f xy_%04.1f z_%04.1f ',plgObj.unitName,strut_dia,unitSizeX,repsX,repsZ);
             fileLocation = sprintf('%s%s%s',obj.outputFolder,filesep,fileName);
             saveCustom(plgObj,[fileLocation,'.custom']);
             
@@ -188,7 +188,7 @@ classdef plgBatch < matlab.unittest.TestCase
         end
     end
     methods (Test, ParameterCombination='sequential')
-        % functions in this method block will only fun if the inputs are
+        % functions in this method block will only run if the inputs are
         % all the same length. and each input will be paired
         
     end

@@ -15,9 +15,6 @@ classdef splitStruts < PLG
             % destroy unique diameter data
             
             obj = obj@PLG(file);
-%             if ~strcmp(obj.unitType,'custom')
-%                 error('splitting can only be performed on custom files')
-%             end
             maxInd = 0; % current highest index in strutsOut
             lengthstruts = 0; % current length of strutsOut
             numstruts = length(obj.struts);
@@ -61,7 +58,7 @@ classdef splitStruts < PLG
                         strutsOut,vertsOut,tol);
                     vertsOut = [vertsOut;vertsTmpOut];
                     strutsTmpOut = strutsTmpOut+maxInd;
-                    diamTmpOut = zeros(size(strutsTmpOut,1),1)*currentDia;
+                    diamTmpOut = ones(size(strutsTmpOut,1),1)*currentDia;
                     % debug: 
                     % patch('struts',obj.struts(inc,:),'Vertices',obj.vertices,'EdgeColor',[1,0,0]);
                     % patch('struts',obj.struts(potentialStruts,:),'Vertices',obj.vertices); hold on;
