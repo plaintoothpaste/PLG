@@ -410,6 +410,10 @@ classdef PLG
         function saveStl(obj,fullName)
             % save out an stl file
             % setup
+            if isempty(obj.resolution) || isempty(obj.sphereResolution)
+                error('please set resolution');
+            end
+            
             numFacets = obj.resolution*4;%number of facets created for one strut
             numLinks = size(obj.struts,1);
             numVertices = size(obj.vertices,1);
@@ -702,24 +706,24 @@ classdef PLG
                 % end of strut at point 1
                 datOut = circshift(vert1end,j);
                 facet_a=point1; facet_b=datOut(1,:); facet_c=datOut(2,:);
-                writeSingleFace(obj,fid,facet_a,facet_c,facet_b);
+                writeSingleFace(obj,fid,facet_a,facet_c,facet_b,inc);
                 
                 % end of strut at point 2
                 datOut = circshift(vert2end,j);
                 facet_a=point2; facet_b=datOut(1,:); facet_c=datOut(2,:);
-                writeSingleFace(obj,fid,facet_a,facet_b,facet_c);
+                writeSingleFace(obj,fid,facet_a,facet_c,facet_b,inc);
                 
                 % along direction point 1 to point 2
                 datOut1 = circshift(vert1end,j);
                 datOut2 = circshift(vert2end,j);
                 facet_a=datOut1(1,:); facet_b=datOut2(1,:); facet_c=datOut2(2,:);
-                writeSingleFace(obj,fid,facet_a,facet_c,facet_b);
+                writeSingleFace(obj,fid,facet_a,facet_c,facet_b,inc);
                 
                 % along direction point 2 to point 1
                 datOut1 = circshift(vert1end,j);
                 datOut2 = circshift(vert2end,j);
                 facet_a=datOut1(1,:); facet_b=datOut1(2,:); facet_c=datOut2(2,:);
-                writeSingleFace(obj,fid,facet_a,facet_b,facet_c);
+                writeSingleFace(obj,fid,facet_a,facet_c,facet_b,inc);
             end
         end
         function writeSingleSphere(obj,fid,ball,sizer,inc)
