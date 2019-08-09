@@ -32,6 +32,9 @@ classdef PLG
         
         tolerance; % defined as 1/100 of the shortest length present
     end
+    properties (SetAccess=private)
+        runLocation; % the location from which the PLG is running usefull for adding subfolders etc
+    end
     methods
         function obj = PLG(varargin)
             % creates the PLG object
@@ -52,6 +55,9 @@ classdef PLG
             obj.sphereAddition = false;
             obj.baseFlat = false;
             obj.origin=[0,0,0];
+            
+            pathPLG = which('PLG');
+            obj.runLocation = fileparts(pathPLG);
         end
         function obj = set(obj,varargin)
             % set a value in the PLG that can be edited
@@ -87,9 +93,9 @@ classdef PLG
         function obj = defineUnit(obj,unitNames)
             % define a unit cell and return the information that needs to
             % be used to define it
-            addpath('unitCell');
+            addpath([obj.runLocation,filesep,'unitCell']);
             unitObj = unitCell(unitNames,obj);
-            rmpath('unitCell');
+            rmpath([obj.runLocation,filesep,'unitCell']);
             
             obj.vertices = unitObj.vertices;
             obj.struts = unitObj.connections;
@@ -662,8 +668,8 @@ classdef PLG
             mkdir('_rels');
             mkdir('3D');
             xmlwrite(['3D',filesep,'3dmodel.model'],xmlObject);
-            copyfile('other/.rels','_rels/.rels');
-            copyfile('other/[Content_Types].xml','[Content_Types].xml');
+            copyfile([obj.runLocation,filesep,'other/.rels'],'_rels/.rels');
+            copyfile([obj.runLocation,filesep,'other/[Content_Types].xml'],'[Content_Types].xml');
             zip('out',{'_rels','3D','[Content_Types].xml'});
             movefile('out.zip',fullName,'f');
             

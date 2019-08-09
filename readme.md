@@ -17,7 +17,7 @@ The following is a list of methods and a quick overview of their function, it sh
 - save: this method is in its own method group and each sub save method will be named according to its save out type. Eg saveStl saves out stl format.
 ## Properties
 properties of the PLG are defiend using the set method to ensure that only trhe correct type can be used.
-```
+``` matlab
 obj = set(obj,'propertyName',value)
 ```
 * resolution - resolution of the struts - scaler integer
