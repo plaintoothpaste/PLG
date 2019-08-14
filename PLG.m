@@ -244,7 +244,7 @@ classdef PLG
         end
         function obj = plus(obj,obj1)
             % add obj1 to obj2
-            newStruts = obj1.struts+max(obj.struts(:));
+            newStruts = obj1.struts+size(obj.vertices,1); % in case there are some verts not being used
             obj.struts = [obj.struts;newStruts];
             obj.strutDiameter = [obj.strutDiameter;obj1.strutDiameter];
             obj.sphereDiameter = [obj.sphereDiameter;obj1.sphereDiameter];
