@@ -24,24 +24,27 @@ classdef manufacturabilityColour < PLG
             % 'y' - borderline
             % 'c' - likely good
             % 'g' - good
-            obj = calcInclineAndLength(obj);
-            obj.colour = zeros(size(obj.incline));
             
-            test = obj.incline<30;
-            obj.colour(test) = 63488; % red
+            obj = readProcessMap(obj,file); % load the process map
+            obj = calcInclineAndLength(obj); % calculate length and incline
             
-            test = obj.incline>=30 & obj.incline<60;
-            obj.colour(test) = 62; % blue
+            % use the information about each strut to determine its colour
+            [inclineI,diaI,spanI] = interpIndex(obj);
             
-            test = obj.incline>=60;
-            obj.colour(test) = 1984; % green
+            obj.colour = arrayfun(@(x,y,z) obj.processMap.colour{x,y,z},...
+                inclineI,diaI,spanI,'UniformOutput',0);
         end
     end
     methods (Access = protected) % sub functions
         function obj = calcInclineAndLength(obj)
+            % calculate length and incline for each face
+            v1 = obj.vertices(obj.struts(:,1),:);
+            v2 = obj.vertices(obj.struts(:,2),:);
+            
+            % angle
             angleVector = [0,0,1];
             numFaces = size(obj.struts,1);
-            v = obj.vertices(obj.struts(:,1),:)-obj.vertices(obj.struts(:,2),:);
+            v = v1-v2;
             vCell = mat2cell(v,ones(numFaces,1),3);
             costheta = cellfun(@(v) dot(angleVector,v)./(norm(angleVector).*norm(v)),vCell);
             theta = acos(costheta)*180/pi;
@@ -50,7 +53,9 @@ classdef manufacturabilityColour < PLG
             theta(~t) = 90-theta(~t);
             obj.incline = theta;
             
-            obj.strutLength = '';
+            % length
+            diffSquare = (v2-v1).^2;
+            obj.strutLength = sqrt(sum(diffSquare));
         end
         function obj = readProcessMap(obj,file)
             % read in a process map csv and create a lookup table that
@@ -64,7 +69,11 @@ classdef manufacturabilityColour < PLG
             t = textscan(fid,'%s',tot+1,'Delimiter','\n');
             fclose(fid);
             
-            data = manufacturabilityColour.readTables(t{1}(2:end),numTables,rows,cols);
+            obj.processMap = manufacturabilityColour.readTables(t{1}(2:end),numTables,rows,cols);
+        end
+        function [inclineI,diaI,spanI] = interpIndex(obj)
+            % determine the nearest index for each key manufacture option
+            
         end
     end
     methods (Static)
@@ -110,6 +119,7 @@ classdef manufacturabilityColour < PLG
             obj = readProcessMap(obj,file);
             expRes = obj.processMap;
         end
+        
     end
     
 end
