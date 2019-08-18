@@ -1,0 +1,5 @@
+1..3
+ok 1 - TestManufacturabilityColour/testReadProcessMap
+ok 2 - TestManufacturabilityColour/testReadTable
+ok 3 - TestManufacturabilityColour/testReadTableError
+

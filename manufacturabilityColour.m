@@ -96,7 +96,7 @@ classdef manufacturabilityColour < PLG
                 for incR = 1:rows-1
                     nd = normalData{incR};
                     for incC = 1:cols-1
-                        d.colour{incR,incC,inc} = nd{incC+1};
+                        d.colour{incR,incC,inc} = nd{incC+1}{1};
                     end
                 end
                 
@@ -115,9 +115,9 @@ classdef manufacturabilityColour < PLG
     end
     methods (Access = ?TestManufacturabilityColour)
         % interfaces for testing only
-        function expRes = readProcMap(obj,file)
+        function actRes = readProcMap(obj,file)
             obj = readProcessMap(obj,file);
-            expRes = obj.processMap;
+            actRes = obj.processMap;
         end
         
     end

@@ -51,7 +51,13 @@ classdef TestManufacturabilityColour < matlab.unittest.TestCase
             %    testReadProcessMap
             % test that the reading of csv process maps is correct
             obj = manufacturabilityColour(testCase.inputCust);
-            expRes = readProcMap(obj,testCase.inputProc);
+            actRes = readProcMap(obj,testCase.inputProc);
+            
+            testCase.verifyEqual(actRes.dia,[0.2;0.5;1;4]);
+            testCase.verifyEqual(actRes.alpha,[0,10,20,30,90]);
+            testCase.verifyEqual(actRes.colour{3,3,1},'c');
+            testCase.verifyEqual(actRes.colour{3,2,3},'c');
+            testCase.verifyEqual(actRes.colour{4,4,4},'y');
         end
     end
     methods (TestClassSetup)
