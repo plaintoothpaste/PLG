@@ -183,7 +183,7 @@ classdef PLG
             a.View = [45,45];
             axis vis3d
             a.NextPlot='add';
-            numStruts = length(obj.strutDiameter);
+            numStruts = size(obj.struts,1);
             if ~exist('colours','var')
                 colours = repmat([0.3,0.3,0.3,0.5],numStruts,1);
             end
