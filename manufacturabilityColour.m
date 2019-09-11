@@ -33,7 +33,9 @@ classdef manufacturabilityColour < PLG
             
             obj.colour = arrayfun(@(x,y,z) obj.processMap.colour{x,y,z},...
                 inclineI,diaI,spanI,'UniformOutput',0);
+            
         end
+        
     end
     methods (Access = protected) % sub functions
         function obj = calcInclineAndLength(obj)
@@ -71,9 +73,15 @@ classdef manufacturabilityColour < PLG
             
             obj.processMap = manufacturabilityColour.readTables(t{1}(2:end),numTables,rows,cols);
         end
-        function [inclineI,diaI,spanI] = interpIndex(obj)
+        function [inclineI,diaI,spanI] = interpIndex(obj,inc)
             % determine the nearest index for each key manufacture option
+            cInc = obj.incline(inc);
+            cDia = obj.sphereDiameter(inc);
+            cSpan = obj.strutLength(inc);
             
+            [~,inclineI] = min(abs(obj.processMap.alpha-cInc));
+            [~,diaI] = min(abs(obj.processMap.dia-cDia));
+            [~,spanI] = min(abs(obj.processMap.span-cSpan));
         end
     end
     methods (Static)
@@ -119,7 +127,26 @@ classdef manufacturabilityColour < PLG
             obj = readProcessMap(obj,file);
             actRes = obj.processMap;
         end
-        
+        function actRes = testLengthIncline(obj,file)
+            obj = readProcessMap(obj,file); % load the process map
+            obj = calcInclineAndLength(obj); % calculate length and incline
+        end
+        function actRes = testInterpIndex(obj,file,incer)
+            obj = readProcessMap(obj,file); % load the process map
+            obj = calcInclineAndLength(obj); % calculate length and incline
+            
+            numInc = length(incer);
+            inclineI = zeros(numInc,1);
+            diaI = zeros(numInc,1);
+            spanI = zeros(numInc,1);
+            for inc = 1:numInc
+                [inclineI(inc),diaI(inc),spanI(inc)] = interpIndex(obj,incer(inc));
+            end
+            
+            actRes.inclineI = inclineI;
+            actRes.diaI = diaI;
+            actRes.spanI = spanI;
+        end
     end
     
 end

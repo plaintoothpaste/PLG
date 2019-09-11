@@ -59,6 +59,27 @@ classdef TestManufacturabilityColour < matlab.unittest.TestCase
             testCase.verifyEqual(actRes.colour{3,2,3},'c');
             testCase.verifyEqual(actRes.colour{4,4,4},'y');
         end
+        function testStrutLengthAndIncline(testCase)
+            %    testStrutLength
+            % test that strutLength and incline are correct
+            obj = manufacturabilityColour(testCase.inputCust);
+            actRes = testLengthIncline(obj,testCase.inputProc);
+            
+            testCase.verifyEqual(actRes.dia,[0.2;0.5;1;4]);
+        end
+        function testInterpIndex(testCase)
+            %    testInterpIndex
+            % test interpretation of index number
+            incer = [1;4;7];
+            obj = manufacturabilityColour(testCase.inputCust);
+            actRes = testInterpIndex(obj,testCase.inputProc,incer);
+            
+            testCase.verifyEqual(actRes.dia,[0.2;0.5;1;4]);
+            testCase.verifyEqual(actRes.alpha,[0,10,20,30,90]);
+            testCase.verifyEqual(actRes.colour{3,3,1},'c');
+            testCase.verifyEqual(actRes.colour{3,2,3},'c');
+            testCase.verifyEqual(actRes.colour{4,4,4},'y');
+        end
     end
     methods (TestClassSetup)
         function setup(testCase)
@@ -69,6 +90,8 @@ classdef TestManufacturabilityColour < matlab.unittest.TestCase
                 % only move to the root dir if required
                 cd('..');
             end
+            
+            % run expansion of 
         end
     end
     methods (TestClassTeardown)
