@@ -57,7 +57,7 @@ classdef manufacturabilityColour < PLG
             
             % length
             diffSquare = (v2-v1).^2;
-            obj.strutLength = sqrt(sum(diffSquare));
+            obj.strutLength = sqrt(sum(diffSquare,2));
         end
         function obj = readProcessMap(obj,file)
             % read in a process map csv and create a lookup table that
@@ -65,8 +65,8 @@ classdef manufacturabilityColour < PLG
             fid = fopen(file,'r');
             t = textscan(fid,'%f %f %f %*[^\n]',1,'Delimiter',',');
             numTables = t{1};
-            rows = t{2};
-            cols = t{3};
+            rows = t{2}+1;
+            cols = t{3}+1;
             tot = rows*numTables;
             t = textscan(fid,'%s',tot+1,'Delimiter','\n');
             fclose(fid);
@@ -130,6 +130,8 @@ classdef manufacturabilityColour < PLG
         function actRes = testLengthIncline(obj,file)
             obj = readProcessMap(obj,file); % load the process map
             obj = calcInclineAndLength(obj); % calculate length and incline
+            actRes.dia = obj.strutDiameter;
+            actRes.len = obj.strutLength;
         end
         function actRes = testInterpIndex(obj,file,incer)
             obj = readProcessMap(obj,file); % load the process map
