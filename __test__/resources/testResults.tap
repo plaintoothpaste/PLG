@@ -1,24 +1,8 @@
-1..5
-ok 1 - TestManufacturabilityColour/testReadTable
-ok 2 - TestManufacturabilityColour/testReadTableError
-ok 3 - TestManufacturabilityColour/testStrutLengthAndIncline
-ok 4 - TestManufacturabilityColour/testReadProcessMap
-not ok 5 - TestManufacturabilityColour/testInterpIndex
-# ================================================================================
-# Error occurred in TestManufacturabilityColour/testInterpIndex and it did not run to completion.
-# 
-#     ---------
-#     Error ID:
-#     ---------
-#     'MATLAB:nonExistentField'
-# 
-#     --------------
-#     Error Details:
-#     --------------
-#     Reference to non-existent field 'dia'.
-#     
-#     Error in TestManufacturabilityColour/testInterpIndex (line 83)
-#                 testCase.verifyEqual(actRes.dia,[0.2;0.5;1;4]);
-# ================================================================================
-# 
+1..6
+ok 1 - TestManufacturabilityColour/testStrutLengthAndIncline
+ok 2 - TestManufacturabilityColour/testReadProcessMap
+ok 3 - TestManufacturabilityColour/testReadTable
+ok 4 - TestManufacturabilityColour/testInterpIndex
+ok 5 - TestManufacturabilityColour/testBasicRun
+ok 6 - TestManufacturabilityColour/testReadTableError
 

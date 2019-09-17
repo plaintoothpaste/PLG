@@ -192,6 +192,7 @@ classdef PLG
                 p = plot3(points(:,1),points(:,2),points(:,3),'Color',colours(inc,:));
                 p.MarkerFaceColor = [0.9,0.5,0]; p.MarkerEdgeColor = 'none';
                 p.Marker = 'o';
+                p.LineWidth = 3;
             end
             xlabel('x')
             ylabel('y')

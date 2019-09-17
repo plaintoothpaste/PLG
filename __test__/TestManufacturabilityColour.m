@@ -80,11 +80,28 @@ classdef TestManufacturabilityColour < matlab.unittest.TestCase
             obj = manufacturabilityColour(testCase.inputCust);
             actRes = testInterpIndex(obj,testCase.inputProc,incer);
             
-            testCase.verifyEqual(actRes.dia,[0.2;0.5;1;4]);
-            testCase.verifyEqual(actRes.alpha,[0,10,20,30,90]);
-            testCase.verifyEqual(actRes.colour{3,3,1},'c');
-            testCase.verifyEqual(actRes.colour{3,2,3},'c');
-            testCase.verifyEqual(actRes.colour{4,4,4},'y');
+            testCase.verifyEqual(actRes.inclineI,[1;2;4]);
+            testCase.verifyEqual(actRes.diaI,[1;1;2]);
+            testCase.verifyEqual(actRes.spanI,[3;2;3]);
+        end
+    end
+    methods (Test,TestTags = {'integration'})
+        function testBasicRun(testCase)
+            % test that the colours array is succefully generated
+            obj = manufacturabilityColour(testCase.inputCust);
+            obj = runManufacturability(obj,testCase.inputProc);
+            
+            actColours = obj.colour([1,4,7],:);
+            expColours = [1,1,0;0,1,0;0,1,0];
+            testCase.verifyEqual(actColours,expColours);
+        end
+        function testBasicPlot(testCase)
+            % test plotting
+            obj = manufacturabilityColour(testCase.inputCust);
+            obj = runManufacturability(obj,testCase.inputProc);
+            
+            % warning visual only validation
+            plot(obj,obj.colour);
         end
     end
     methods (TestClassSetup)
@@ -130,15 +147,15 @@ classdef TestManufacturabilityColour < matlab.unittest.TestCase
             if index~=1 && ischar(cData)
                 fprintf(fid,'%s, ',cData);
             elseif index~=1 && isnan(cData)
-                fprintf(fid,' ');
+                fprintf(fid,',');
             elseif index~=1 && ~ischar(cData) 
                 fprintf(fid,'%d, ',cData);
             elseif index==1 && ischar(cData)
-                fprintf(fid,'%s \n',cData);
+                fprintf(fid,'%s,\n',cData);
             elseif index==1 && isnan(cData)
-                fprintf(fid,'\n');
+                fprintf(fid,',\n');
             elseif index==1 && ~ischar(cData)
-                fprintf(fid,'%d \n',cData);
+                fprintf(fid,'%d,\n',cData);
             end
             
             TestManufacturabilityColour.write2csv(fid,data,newLineFreq);

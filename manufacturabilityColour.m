@@ -28,12 +28,9 @@ classdef manufacturabilityColour < PLG
             obj = readProcessMap(obj,file); % load the process map
             obj = calcInclineAndLength(obj); % calculate length and incline
             
-            % use the information about each strut to determine its colour
-            [inclineI,diaI,spanI] = interpIndex(obj);
-            
-            obj.colour = arrayfun(@(x,y,z) obj.processMap.colour{x,y,z},...
-                inclineI,diaI,spanI,'UniformOutput',0);
-            
+            % get a list of colours
+             obj = interpAllColour(obj);
+             obj.colour = manufacturabilityColour.letter2numColour(obj.colour); % change letter colours to array colours
         end
         
     end
@@ -74,14 +71,23 @@ classdef manufacturabilityColour < PLG
             obj.processMap = manufacturabilityColour.readTables(t{1}(2:end),numTables,rows,cols);
         end
         function [inclineI,diaI,spanI] = interpIndex(obj,inc)
-            % determine the nearest index for each key manufacture option
+            % based on the manufacturing options return the correct colour index
             cInc = obj.incline(inc);
-            cDia = obj.sphereDiameter(inc);
+            cDia = obj.strutDiameter(inc);
             cSpan = obj.strutLength(inc);
             
             [~,inclineI] = min(abs(obj.processMap.alpha-cInc));
             [~,diaI] = min(abs(obj.processMap.dia-cDia));
             [~,spanI] = min(abs(obj.processMap.span-cSpan));
+        end
+        function obj = interpAllColour(obj)
+            % interp all the colours
+            numStruts = length(obj.incline);
+            obj.colour = cell(numStruts,1);
+            for inc = 1:numStruts
+                [inclineI,diaI,spanI] = interpIndex(obj,inc);
+                obj.colour{inc} = obj.processMap.colour{spanI,inclineI,diaI};
+            end
         end
     end
     methods (Static)
@@ -119,6 +125,28 @@ classdef manufacturabilityColour < PLG
                     end
                 end
             end
+        end
+        function colourNum = letter2numColour(colourLet)
+            % convert a list of colours in a cell, as letters, to an array of colour values
+            if isempty(colourLet)
+                colourNum = [];
+                return;
+            end
+            cLetter = colourLet{1};
+            if strcmp(cLetter,'g')
+                colourNumC = [0,1,0];
+            elseif strcmp(cLetter,'c')
+                colourNumC = [0,1,1];
+            elseif strcmp(cLetter,'y')
+                colourNumC = [1,1,0];
+            elseif strcmp(cLetter,'r')
+                colourNumC = [1,0,0];
+            else
+                error('letter %s not supported',cLetter);
+            end
+            
+            colourNumF = manufacturabilityColour.letter2numColour(colourLet(2:end));
+            colourNum = [colourNumC;colourNumF];
         end
     end
     methods (Access = ?TestManufacturabilityColour)
