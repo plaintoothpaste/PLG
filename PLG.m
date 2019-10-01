@@ -254,6 +254,15 @@ classdef PLG
             % remove any matching struts
             obj = cleanLattice(obj);
         end
+        function obj = cart2polar(obj)
+            rad = obj.vertices(:,1);
+            theta = obj.vertices(:,2);
+            omega = obj.vertices(:,3);
+            
+            obj.vertices(:,1) = rad.*cos(theta).*sin(omega);
+            obj.vertices(:,2) = rad.*sin(theta).*sin(omega);
+            obj.vertices(:,3) = rad.*cos(omega);
+        end
     end
     methods % stats and advanced
         function obj = calcDx(obj)
