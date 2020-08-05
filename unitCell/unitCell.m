@@ -71,7 +71,7 @@ classdef unitCell
     end
     methods (Access=protected)
         function obj = load(obj,unitName)
-            % load all xml objects
+            % load all xml objects required
             fileName = ['unitCell',filesep,unitName,'.xml'];
             xmlObj = xmlread(fileName);
             xmlStructure = unitCell.parseChildNodes(xmlObj);
@@ -106,7 +106,7 @@ classdef unitCell
             % unit cell type and name
             obj.unitName = [obj.unitName,' ',xmlStructure.Children(strutLoc).Attributes(1).Value];
             if ~isempty(obj.unitType)
-                if strcmp(obj.unitType,xmlStructure.Children(strutLoc).Attributes(2).Value);
+                if strcmp(obj.unitType,xmlStructure.Children(strutLoc).Attributes(2).Value)
                     % good load
                 else
                     % bad load can not load a beam and facet at the same time
