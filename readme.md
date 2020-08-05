@@ -1,56 +1,39 @@
+# PLG
+
+A group of functions that enable the programmatic lattice generation (PLG).
+
+These can be built up form basic unit cells as well as transformed scaled and joined.
+
+There are four main functions:
+
+* PLG - make a lattice file and save as a custom file.
+* custom2stl - save a custom to a stl file.
+* custom2threemf - save a custom to a 3mf file.
+* plotPLG - plot a custom file.
+* addSupport - add support pins to a custom file.
+* splitStruts - inspects a custom file for intersections without a vertex.
+* batchPLG - batch create custom files.
+
 Author(s): Matthew McMillan, 
 
-LAST UPDATE: 06/09/2019
+LAST UPDATE: 05/08/2020
 
-- [description](#description)
-  - [available unit cells](#available-unit-cells)
-  - [General use](#general-use)
-  - [Methods](#methods)
-  - [Properties](#properties)
-  - [Examples](#examples)
-- [Special use cases](#special-use-cases)
-  - [Adding Support](#adding-support)
-  - [SubClass splitStrut](#subclass-splitstrut)
-  - [xlm->custom and custom->xml](#xlm-custom-and-custom-xml)
-  - [plgBatch](#plgbatch)
 
-# description
-This program takes a variety of inputs and writes a lattice file in various output formats for use in other programs. The use of the plgBatch file simplifies the creation of a large number of lattice(s). Example implementations is present in the complex example file.
 
-## available unit cells
-The following is a list of presently available unit cells, **see generating a unit cell** for structure of xml file:
-
-* bcc - cross from each corner into the centre
-* ![BCC](__readMeResources__\bcc_cr.png)
-* centreCross - cross from the centre of each face to the centre
-* ![centreCross](__readMeResources__\centreCross_cr.png)
-* horizontalFaceRods - x shape on the two planes, top and bottom, that are perpendicular to the z axis
-* ![horizontalFaceRods](__readMeResources__\horizontalFaceRods_cr.png)
-* verticalFaceRods - x shape on all the faces that are NOT perpendicular to the z axis
-* ![verticalFaceRods](__readMeResources__\VerticalFaceRods_cr.png)
-* xRods - strutures on all edges of the cube that are parallel to the x axis
-* ![xRods](__readMeResources__\xRods_cr.png)
-* yRods - strutures on all edges of the cube that are parallel to the y axis
-* ![yRods](__readMeResources__\yRods_cr.png)
-* zRods - strutures on all edges of the cube that are parallel to the z axis
-* ![zRods](__readMeResources__\zRods_cr.png)
-* generalCorner - a shape that allows for joining of a unit cell at 90 and 45 degrees about all axis where its scaler value is the size of the unit cell you wish to attach too, See complex example
-* ![generalCorner](__readMeResources__\bcc_cr.png)
-
-current as of commit: ab0b2ead71e301179d2f236f8394eff1b345ae0c
+[TOC]
 
 ## General use
+
 The general overview of use for the PLG is as follows:
 
-1. Define dimensions and replications at minimum using the **set** method
-2. [optional] define origin and base flat, see properties section for the full list
-3. Define the unit cell using the **defineUnit** method
-4. Apply replications using the **cellReplication** method
-5. [recommended] clean duplicate nodes and struts using **cleanLattice**
-6. [optional] perform geometric transformations
-7. [optional] combine with other PLG objects 
-8. [optional] plot the results with the **plot** method
-9. save the data using the **save** method
+1. Define dimensions and replications at minimum using the **set** method.
+2. [optional] define origin and base flat, see properties section for the full list.
+3. Define the unit cell using the **defineUnit** method.
+4. Apply replications using the **cellReplication** method.
+5. [recommended] clean duplicate nodes and struts using **cleanLattice**.
+6. [optional] perform geometric transformations.
+7. [optional] combine with other PLG objects.
+8. save the data using the **save** method.
 
 ```matlab
 obj = PLG() % no input creates an empty object
@@ -66,9 +49,26 @@ obj = cellReplication(obj); % requires the replications to be set
 obj = cleanLattice(obj); % remove any vertices and struts that are coincident
 save(obj); % uses a gui save tool
 ```
+
 Be aware that defining a unit cell will overwrite replication data.
 cellReplication must be performed even if the replication is [1,1,1]
 cleanLattice merges coincident struts and nodes which may lead to different diameters then expected for custom built organic lattices.
+
+## Available unit cells
+The following is a list of presently available unit cells, **see generating a unit cell** for structure of xml file:
+
+| Name               |                            Image                             | Description                                                  |
+| :----------------- | :----------------------------------------------------------: | ------------------------------------------------------------ |
+| bcc                |            ![BCC](__readMeResources__\bcc_cr.png)            | Cross from the <br>centre of each face.                      |
+| centreCross        |    ![centreCross](__readMeResources__\centreCross_cr.png)    | cross from the centre <br>of each face to the centre         |
+| horizontalFaceRods | ![horizontalFaceRods](__readMeResources__\horizontalFaceRods_cr.png) | shape on the two planes, top and bottom,<br>that are perpendicular to the z axis. |
+| verticalFaceRods   | ![verticalFaceRods](__readMeResources__\VerticalFaceRods_cr.png) | x shape on all the faces that are <br>NOT perpendicular to the z axis. |
+| xRods              |          ![xRods](__readMeResources__\xRods_cr.png)          | struts on all edges of the cube<br>that are parallel to the x axis. |
+| yRods              |          ![yRods](__readMeResources__\yRods_cr.png)          | struts on all edges of the cube <br>that are parallel to the y axis. |
+| zRods              |          ![zRods](__readMeResources__\zRods_cr.png)          | struts on all edges of the cube <br>that are parallel to the z axis. |
+| generalCorner      |       ![generalCorner](__readMeResources__\bcc_cr.png)       | a shape that allows for joining of a unit cell at 90 and 45 degrees about all axis where its scaler value is the size of the unit cell you wish to attach too, See complex example. |
+
+current as of commit: ab0b2ead71e301179d2f236f8394eff1b345ae0c
 
 ## Methods
 The following is a list of methods and a quick overview of their function, it should obvious from the name what it is they do.
@@ -82,16 +82,16 @@ The following is a list of methods and a quick overview of their function, it sh
 - rotate: rotates the lattice structure
 - plus:   combines an existing PLG object into another plg object usefull for generating complex lattice shapes
 - plot: displays a rendering of the beam model that represents the lattice.
-- save: this method is in its own method group and each sub save method will be named according to its save out type. Eg saveStl saves out stl format.
+- save: this method saves data to a custom file.
 
 ## Properties
-properties of the PLG are defiend using the set method to ensure that only trhe correct type can be used.
+properties of the PLG are defined using the set method to ensure that only the correct type can be used.
 ``` matlab
 obj = set(obj,'name',value);
 ```
 * resolution - resolution of the struts - scaler integer
 * strutDiameter - strut diameter - scaler float
-* sphereAddition - determines wheter to add spheres to the structure - logical (true or false)
+* sphereAddition - determines whether to add spheres to the structure - logical (true or false)
 * sphereResolution - required if sphereAddition is true
 * sphereDiameter - required if sphereAddition is true
 * baseFlat - flattens the spheres at minimum z height vertices to create a flat base for supports - logical (true or false) - does nothing if sphereAddition is false
@@ -99,7 +99,42 @@ obj = set(obj,'name',value);
 * replications - specifies the number of copies of the unit cell - 3x1 vector of integers
 * origin starting location for the centre of the initial unit cell - 3x1 vector of floats - default value is [0,0,0]
 
-## Examples
+# custom2stl
+
+A simple function that takes only a input and output:
+
+```matlab
+custom2stl(file_in.custom,file_out.stl);
+```
+
+# custom2threemf
+
+A simple function that takes only a input and output:
+
+```matlab
+custom2stl(file_in.custom,file_out.3mf);
+```
+
+# plotPLG
+
+A class that enables plotting of custom files.
+
+The files can then be coloured based on various conditions
+
+```matlab
+plotPLG(file_in.custom);
+```
+
+
+
+# batchPLG
+
+Takes a directory containing at least one json file. Each json file will correspond to a single output file
+
+
+
+# Demos
+
 A 3x4x5 BCC lattice with x struts, a 0.3mm strut diameter, 4mm unit cell and 0.5mm ball diameter with its origin moved by 6,7,8 and then saved as a stl (12 facet resolution) and 3mf file with a resolution of 30. See complex example for the use of translation, rotation and plus.
 
 ```matlab
