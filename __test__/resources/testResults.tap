@@ -1,0 +1,8 @@
+1..6
+ok 1 - TestManufacturabilityColour/testStrutLengthAndIncline
+ok 2 - TestManufacturabilityColour/testReadProcessMap
+ok 3 - TestManufacturabilityColour/testReadTable
+ok 4 - TestManufacturabilityColour/testInterpIndex
+ok 5 - TestManufacturabilityColour/testBasicRun
+ok 6 - TestManufacturabilityColour/testReadTableError
+

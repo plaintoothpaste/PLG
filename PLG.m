@@ -174,7 +174,30 @@ classdef PLG
                 obj.sphereDiameter(unusedInds) = [];
             end
         end
-        
+        function plot(obj,colours)
+            f = figure;
+            f.Units	= 'Normalized';
+            f.Position = [0,0,1,1];
+            f.Name = 'STL plotter';
+            a = axes;
+            a.View = [45,45];
+            axis vis3d
+            a.NextPlot='add';
+            numStruts = length(obj.strutDiameter);
+            if ~exist('colours','var')
+                colours = repmat([0.3,0.3,0.3,0.5],numStruts,1);
+            end
+            for inc = 1:numStruts
+                points = [obj.vertices(obj.struts(inc,1),:);obj.vertices(obj.struts(inc,2),:)];
+                p = plot3(points(:,1),points(:,2),points(:,3),'Color',colours(inc,:));
+                p.MarkerFaceColor = [0.9,0.5,0]; p.MarkerEdgeColor = 'none';
+                p.Marker = 'o';
+                p.LineWidth = 3;
+            end
+            xlabel('x')
+            ylabel('y')
+            zlabel('z')
+        end
         function save(obj)
             % this overloads the save function and allows saving out in various
             % formats however this only saves the latticeStructure structure
@@ -230,6 +253,15 @@ classdef PLG
             
             % remove any matching struts
             obj = cleanLattice(obj);
+        end
+        function obj = cart2polar(obj)
+            rad = obj.vertices(:,1);
+            theta = obj.vertices(:,2);
+            omega = obj.vertices(:,3);
+            
+            obj.vertices(:,1) = rad.*cos(theta).*sin(omega);
+            obj.vertices(:,2) = rad.*sin(theta).*sin(omega);
+            obj.vertices(:,3) = rad.*cos(omega);
         end
     end
     methods % stats and advanced
