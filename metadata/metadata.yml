@@ -1,0 +1,13 @@
+metadata_version: 1
+name: PLG capsule
+description: A software tool to build lattice structures.
+authors:
+- name: Matthew McMillan
+  affiliations:
+  - name: RMIT University
+- name: David Downing
+  affiliations:
+  - name: RMIT University
+- name: Martin Leary
+  affiliations:
+  - name: RMIT University

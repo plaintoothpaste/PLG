@@ -1,6 +1,8 @@
 classdef PLG
-    % The PLG program designed for the generation of regular repeating stuctures, normally a lattice
-    % but not limited to lattices.
+    %PLG a program designed for the generation of lattice structures.
+    %    The PLG program designed for the generation of regular repeating 
+    %    stuctures, normally a lattice. See readme for details.
+    
     properties (SetAccess=protected)
         unitName;
         

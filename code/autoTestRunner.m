@@ -1,6 +1,8 @@
 function autoTestRunner(tag)
-% automatically run tests based on tag input
-% if no input the all tests are run
+%autoTestRunner runs tests to be inspected by an CT tool like Jarvis.
+%    Runs tests and saves them in a TAP file.
+% Inputs
+%    tag    : Optional for filtering tests. If no input the all tests are run.
 
 import matlab.unittest.TestSuite;
 import matlab.unittest.TestRunner;

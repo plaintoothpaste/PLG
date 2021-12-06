@@ -1,5 +1,5 @@
 classdef plotPLG
-    % The plotPLG program will plot custom files with desired settings
+    % plotPLG will plot custom files with desired settings.
     properties (SetAccess=protected)
         f
         a
