@@ -6,7 +6,21 @@ These can be built up form basic unit cells as well as transformed scaled and jo
 
 Author(s): Matthew McMillan, David downing, Martin Leary
 
-LAST UPDATE: 07.12.2021
+TODO
+
+*   [critical] custom -> .lattice file
+*   [critical] update tests to work in the new format.
+*   [critical]test demos in the new format.
+*   [critical] radial code fold in.
+*   [critical] demo for radial.
+*   [medium] better comments in methods.
+*   [critical] [paper] fill out tech stack table.
+
+DONE
+
+*   [critical] other BCC
+
+LAST UPDATE: 08.12.2021
 
 [TOC]
 
