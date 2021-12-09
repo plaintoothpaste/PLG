@@ -21,29 +21,32 @@ classdef PLG
         unitSize
         replications
         origin
+    end
+    properties (SetAccess=private)
+        runLocation; % the location from which the PLG is running.
         
         loadExtensions = {'xml','custom unit cell file defined as a xml';...
-                          'stl', 'standard unit cell file';...
-                          'custom','standard beam output of PLG';...
+                          'stl', 'standard AM triangular surface file';...
+                          'lattice','standard beam output of PLG';...
                           'csv','manualy defined beam model';...
                           'xlsx','manualy defined beam model'};
         saveExtensions = {'*.stl', 'binary facet representation (compatibility)';...
                           '*.3mf', 'tesselated facet file (recommended)';...
-                          '*.custom', 'beam output method (simulation)';...
-                          '*.inp', 'Abaqus input file (TODO)'};
+                          '*.lattice', 'Basic output method (use for PLG)';...
+                          '*.inp', 'Abaqus input file.'};
         
         tolerance; % defined as 1/100 of the shortest length present
     end
-    properties (SetAccess=private)
-        runLocation; % the location from which the PLG is running usefull for adding subfolders etc
-    end
     methods
         function obj = PLG(varargin)
-            % creates the PLG object
+            % PLG generates a lattice or loads an existing one.
+            %   With no inputs a new lattice is made
+            %   With one input of a file name the '.lattice' file is loaded
+            %   Initialises the PLG object
             switch numel(varargin)
                 case 0
                     % generate a new lattice
-                    disp('generating a lattice from scratch');
+                    disp('Generating a new lattice');
                 case 1
                     % import a custom lattice file containing beam and node
                     % definitions see load function for more information
@@ -52,7 +55,7 @@ classdef PLG
                     
                     obj.unitName = varargin{1};
                 otherwise
-                    error('Incorrect number of inputs');
+                    error('Only a single file path can be specified.');
             end
             obj.sphereAddition = false;
             obj.baseFlat = false;
@@ -62,7 +65,9 @@ classdef PLG
             obj.runLocation = fileparts(pathPLG);
         end
         function obj = set(obj,varargin)
-            % set a value in the PLG that can be edited
+            % set set properties of the PLG object
+            %    contains some basic validation.
+            %    Returns a modified PLG object.
             allowable={'resolution','strutDiameter','sphereAddition',...
                 'sphereResolution','sphereDiameter','unitSize',...
                 'replications','origin','baseFlat'};
@@ -93,8 +98,12 @@ classdef PLG
             end
         end
         function obj = defineUnit(obj,unitNames)
-            % define a unit cell and return the information that needs to
-            % be used to define it
+            % defineUnit creates the unit cell that is then manipulated by PLG
+            %    unitNames - A list of strings with each desired unit cell.
+            %    Returns a modified PLG object.
+            %
+            %    WARNING: Running this function will delete any replication
+            %    translation rotation etc that were were previously applied.
             addpath([obj.runLocation,filesep,'unitCell']);
             unitObj = unitCell(unitNames,obj);
             rmpath([obj.runLocation,filesep,'unitCell']);
@@ -106,7 +115,11 @@ classdef PLG
             obj.unitName = unitObj.unitName;
         end
         function obj = cellReplication(obj)
-            % replicates vertices and struts as well as sphere and strut diams
+            % cellReplication Applies cell replications.
+            %    The details of cell replication must be set before calling
+            %    this function.
+            %    Returns a modified PLG object.
+            
             xPlacement = [0:obj.unitSize(1):obj.unitSize(1)*(obj.replications(1)-1)]+obj.origin(1);
             yPlacement = [0:obj.unitSize(2):obj.unitSize(2)*(obj.replications(2)-1)]+obj.origin(2);
             zPlacement = [0:obj.unitSize(3):obj.unitSize(3)*(obj.replications(3)-1)]+obj.origin(3);
@@ -134,11 +147,16 @@ classdef PLG
             obj.strutDiameter = cell2mat(strutDiamOut(:));
         end
         function obj = cleanLattice(obj)
-            % cleans the lattice structure including the removal of duplicate transforms or
-            % duplicate vertices and struts depending on type
+            % cleanLattice removes coincident vertices and struts.
+            %    Due to transformations, replications etc there may be
+            %    items that coincide with each other. This function
+            %    removes those items. It is recommended to always run this
+            %    function before saving out a file.
+            %    Returns a modified PLG object.
+            %
+            %    WARNING: may have a strange effect on diameters.
             
             % tolerance - get the shortest strut and divide by 1000
-            numVerts = size(obj.vertices,1);
             verts1 = obj.vertices(obj.struts(:,1),:);
             verts2 = obj.vertices(obj.struts(:,2),:);
             lengthVerts = sum(sqrt((verts1-verts2).^2),2);
@@ -177,10 +195,14 @@ classdef PLG
             end
         end
         function plot(obj,colours)
+            % plot makes a basic plot of the lattices 
+            %    colours - a single colour for all struts or a nx3 array of
+            %    colours where n is the length of struts.
+            %    Return void.
             f = figure;
             f.Units	= 'Normalized';
             f.Position = [0,0,1,1];
-            f.Name = 'STL plotter';
+            f.Name = 'Strut plotter';
             a = axes;
             a.View = [45,45];
             axis vis3d
@@ -200,38 +222,28 @@ classdef PLG
             ylabel('y')
             zlabel('z')
         end
-        function save(obj)
-            % this overloads the save function and allows saving out in various
-            % formats however this only saves the latticeStructure structure
-            [fileName,pathName,filterIndex] = uiputfile(obj.saveExtensions);
-            file = [pathName,fileName];
-            switch filterIndex
-                case 1
-                    saveStl(obj,file);
-                case 2
-                    save3mf(obj,file)
-                case 3
-                    saveCustom(obj,file)
-                case 4
-                    saveAbaqus(obj,file)
-                otherwise
-                    error('No file saved')
-            end
-        end
     end
     methods % lattice manipulations
         function obj = scale(obj,sx,sy,sz)
+            % scale Scales the struts must provide a scale in x,y,z
+            %    Does not scale diameters.
+            %    Returns a modified PLG object.
             obj.vertices(:,1) = obj.vertices(:,1)*sx;
             obj.vertices(:,2) = obj.vertices(:,2)*sy;
             obj.vertices(:,3) = obj.vertices(:,3)*sz;
         end
         function obj = translate(obj,x,y,z)
+            % translate Translate the struts must provide a x,y,z
+            %    Returns a modified PLG object.
             obj.vertices(:,1) = obj.vertices(:,1)+x;
             obj.vertices(:,2) = obj.vertices(:,2)+y;
             obj.vertices(:,3) = obj.vertices(:,3)+z;
         end
         function obj = rotate(obj,wx,wy,wz)
-            % rotations are in degrees about the main axes
+            % rotate Rotate the struts must provide a rotation about x,y,z
+            %    Rotations are in degrees about the main axes
+            %    Returns a modified PLG object.
+            
             % to radians
             wx = wx*pi/180;
             wy = wy*pi/180;
@@ -246,7 +258,10 @@ classdef PLG
             obj.vertices = newVerts(:,1:3);
         end
         function obj = plus(obj,obj1)
-            % add obj1 to obj2
+            % plus Combines two objects together. Overloads the "+"
+            %    Returns a modified PLG object.
+            %
+            %    WARNING: may have a strange effect on diameters.
             newStruts = obj1.struts+size(obj.vertices,1); % in case there are some verts not being used
             obj.struts = [obj.struts;newStruts];
             obj.strutDiameter = [obj.strutDiameter;obj1.strutDiameter];
@@ -257,6 +272,9 @@ classdef PLG
             obj = cleanLattice(obj);
         end
         function obj = cart2polar(obj)
+            % cart2polar Converts the spacial system
+            %    TODO move to sub class.
+            %    Returns a modified PLG object.
             rad = obj.vertices(:,1);
             theta = obj.vertices(:,2);
             omega = obj.vertices(:,3);
@@ -268,16 +286,19 @@ classdef PLG
     end
     methods % stats and advanced
         function obj = calcDx(obj)
-            % returns the absolute vector length
+            % calcDx Calculate the length of all struts.
             p1 = obj.vertices(obj.struts(:,1),:);
             p2 = obj.vertices(obj.struts(:,2),:);
             diffx = (p1(:,1)-p2(:,1));
             diffy = (p1(:,2)-p2(:,2));
             diffz = (p1(:,3)-p2(:,3));
+            % TODO
             obj.dx = sqrt(diffx.^2+diffy.^2+diffz.^2);
         end
         function getProperties(obj,fileName)
+            % getProperties Perform a statistical analysis.
             % convert plg inputs into the function inputs
+            % TODO move into a sub class
             numNodes=size(obj.vertices,1);
             numStruts=size(obj.struts,1); % Read Number of Struts
             Struts=[obj.struts,obj.strutDiameter];
@@ -385,7 +406,9 @@ classdef PLG
             xlswrite(fileName,summaryRedun,'Sheet1','J4');
         end
         function obj = load(obj,file)
-            % load a custom beam input file to generate a lattice structure
+            % load Loads data for use in PLG
+            %    file is passed from main PLG.
+            %    Returns a modified PLG object.
             parts = strsplit(file,'.');
             extension = parts{end};
             switch extension
@@ -398,13 +421,13 @@ classdef PLG
                     %TODO
                     error('use unitCell/stl2unitCell.m to convert to a xml for loading')
                 case obj.loadExtensions{3,1}
-                    % custom - assumes custom model type
+                    % lattice - assumes lattice model type
                     data = csvread(file);
                 case obj.loadExtensions{4,1}
-                    % csv - assumes custom model type
+                    % csv - assumes lattice model type
                     data = csvread(file);
                 case obj.loadExtensions{5,1}
-                    % exvel - assumes custom model
+                    % excel - assumes lattice model
                     data = xlsread(file);
                 otherwise
                     error('not a suitable load format');
@@ -425,9 +448,30 @@ classdef PLG
         end
     end          
     methods % save out methods
+        function save(obj)
+            % save Overloads the save function and opens a gui save.
+            %    Allows saving out in various standard formats specified in
+            %    the properties.
+            %    Note: the individual save functions can be used if a non 
+            %    gui option is desired.
+            [fileName,pathName,filterIndex] = uiputfile(obj.saveExtensions);
+            file = [pathName,fileName];
+            switch filterIndex
+                case 1
+                    saveStl(obj,file);
+                case 2
+                    save3mf(obj,file)
+                case 3
+                    saveLattice(obj,file)
+                case 4
+                    saveAbaqus(obj,file)
+                otherwise
+                    error('No file saved')
+            end
+        end
         function saveStl(obj,fullName)
-            % save out an stl file
-            % setup
+            % saveStl Save out an stl file
+            
             if isempty(obj.resolution) || isempty(obj.sphereResolution)
                 error('please set resolution');
             end
@@ -486,8 +530,8 @@ classdef PLG
             fclose(fid);
         end
         function saveAbaqus(obj,fullName)
-            % saves out as a abaqus beam model that is used as an input
-            % file
+            % saveAbaqus Save out an abaqus beam model.
+            
             fid = fopen(fullName,'w');
             
             % Write the header
@@ -519,10 +563,11 @@ classdef PLG
             
             fclose(fid);
         end
-        function saveCustom(obj,fullName)
-            % saves data to a csv file with the .custom extension usefull as a beam model input to
-            % simulations
-            obj = cleanLattice(obj);
+        function saveLattice(obj,fullName)
+            % saveLattice saves data to a csv file with the .lattice 
+            % extension
+            %    fullname is the path.
+            %    Returns void.
             
             % write out the data
             numNodes=size(obj.vertices,1);
@@ -537,9 +582,13 @@ classdef PLG
             dlmwrite(fullName,data,'-append');
         end
         function save3mf(obj,fullName)
-            % safe a PLG lattice as a 3D manufacturing format file
-            % this consists of three steps
-            % write the general structure of the xml intially
+            % save3mf saves data to a 3mf format
+            %    fullname is the path.
+            %    Returns void.
+            %
+            % Save the PLG lattice as the 3D manufacturing file format
+            % This consists of three sections
+            % write a xml with the following general structure
             %  model
             %    resources
             %      object
@@ -551,10 +600,10 @@ classdef PLG
             %        components
             %           component
             %   build
+            %
             % 1. write a generic strut
             % 2. write a generic sphere
-            % 3. write the locations of the above as a series of
-            % transformations
+            % 3. write all struts and spheres using a series of transformations
             
             % setup object ID
             ID.strut = '0'; % generic strut
@@ -913,7 +962,7 @@ classdef PLG
             numStruts = size(obj.struts,1);
             for inc = 1:numStruts
                 % convert a strut to a transform
-                currentTransform = custom2tramsform(obj,inc);
+                currentTransform = beam2tramsform(obj,inc);
                 str = sprintf('%5.5f ',currentTransform);
                 str(end) = [];
                 
@@ -964,7 +1013,9 @@ classdef PLG
                 end
             end
         end
-        function transform = custom2tramsform(obj,inc)
+        function transform = beam2tramsform(obj,inc)
+            % beam2tramsform
+            %    Determine the affine transform for a given beam increment.
             verts = [0,0,-0.5;0,0,0.5];
             thirdPoint = verts(1,:)+[0.5,0,0];
             forthPoint = verts(2,:)+[0,0.5,0];

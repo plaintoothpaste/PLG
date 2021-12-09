@@ -21,7 +21,7 @@ classdef plgBatch < matlab.unittest.TestCase
     properties (TestParameter)
         % every combination of properties will be produced must be a cell
         % input
-        saveOut = {'custom'};
+        saveOut = {'lattice'};
         unitCell = {{'verticalFaceRods','zRods'}};
         resolution = {15};
         
@@ -66,13 +66,13 @@ classdef plgBatch < matlab.unittest.TestCase
             switch saveOut
                 case 'stl'
                     saveStl(plgObj,[fileLocation,'.stl']);
-                case 'custom'
-                    saveCustom(plgObj,[fileLocation,'.custom']);
+                case 'lattice'
+                    saveLattice(plgObj,[fileLocation,'.lattice']);
                 case '3mf'
                     save3mf(plgObj,[fileLocation,'.3mf']);
                 case 'all'
                     saveStl(plgObj,[fileLocation,'.stl']);
-                    saveCustom(plgObj,[fileLocation,'.custom']);
+                    saveLattice(plgObj,[fileLocation,'.lattice']);
                     save3mf(plgObj,[fileLocation,'.3mf']);
                 otherwise
                     error('saveOut type:%s not supported',saveOut);
@@ -101,13 +101,13 @@ classdef plgBatch < matlab.unittest.TestCase
             switch saveOut
                 case 'stl'
                     saveStl(plgObj,[fileLocation,'.stl']);
-                case 'custom'
-                    saveCustom(plgObj,[fileLocation,'.custom']);
+                case 'lattice'
+                    saveLattice(plgObj,[fileLocation,'.lattice']);
                 case '3mf'
                     save3mf(plgObj,[fileLocation,'.3mf']);
                 case 'all'
                     saveStl(plgObj,[fileLocation,'.stl']);
-                    saveCustom(plgObj,[fileLocation,'.custom']);
+                    saveLattice(plgObj,[fileLocation,'.lattice']);
                     save3mf(plgObj,[fileLocation,'.3mf']);
                 otherwise
                     error('saveOut type:%s not supported',saveOut);
@@ -134,13 +134,13 @@ classdef plgBatch < matlab.unittest.TestCase
             switch saveOut
                 case 'stl'
                     saveStl(plgObj,[fileLocation,'.stl']);
-                case 'custom'
-                    saveCustom(plgObj,[fileLocation,'.custom']);
+                case 'lattice'
+                    saveLattice(plgObj,[fileLocation,'.lattice']);
                 case '3mf'
                     save3mf(plgObj,[fileLocation,'.3mf']);
                 case 'all'
                     saveStl(plgObj,[fileLocation,'.stl']);
-                    saveCustom(plgObj,[fileLocation,'.custom']);
+                    saveLattice(plgObj,[fileLocation,'.lattice']);
                     save3mf(plgObj,[fileLocation,'.3mf']);
                 otherwise
                     error('saveOut type:%s not supported',saveOut);
@@ -164,9 +164,9 @@ classdef plgBatch < matlab.unittest.TestCase
             
             fileName = sprintf('unit_%s d_%04.1f us_%04.1f xy_%04.1f z_%04.1f ',plgObj.unitName,strut_dia,unitSizeX,repsX,repsZ);
             fileLocation = sprintf('%s%s%s',obj.outputFolder,filesep,fileName);
-            saveCustom(plgObj,[fileLocation,'.custom']);
+            saveLattice(plgObj,[fileLocation,'.lattice']);
             
-            plgObj = addSupport([fileLocation,'.custom'],obj.supportDia,0,10,0.1);
+            plgObj = addSupport([fileLocation,'.lattice'],obj.supportDia,0,10,0.1);
             plgObj = padSupport(plgObj,0.9+strut_dia/2,obj.supportDia,0);
             plgObj = set(plgObj,'sphereResolution',resolution);
             plgObj = set(plgObj,'resolution',resolution);
@@ -174,13 +174,13 @@ classdef plgBatch < matlab.unittest.TestCase
             switch saveOut
                 case 'stl'
                     saveStl(plgObj,[fileLocation,'.stl']);
-                case 'custom'
-                    saveCustom(plgObj,[fileLocation,'.custom']);
+                case 'lattice'
+                    saveLattice(plgObj,[fileLocation,'.lattice']);
                 case '3mf'
                     save3mf(plgObj,[fileLocation,'.3mf']);
                 case 'all'
                     saveStl(plgObj,[fileLocation,'.stl']);
-                    saveCustom(plgObj,[fileLocation,'.custom']);
+                    saveLattice(plgObj,[fileLocation,'.lattice']);
                     save3mf(plgObj,[fileLocation,'.3mf']);
                 otherwise
                     error('saveOut type:%s not supported',saveOut);

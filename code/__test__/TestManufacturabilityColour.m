@@ -4,7 +4,7 @@ classdef TestManufacturabilityColour < matlab.unittest.TestCase
     
     properties
         inputProc = '__test__/resources/basicProcessMap.csv'
-        inputCust = '__test__/resources/basicGeom.custom';
+        inputCust = '__test__/resources/basicGeom.lattice';
         
         inputExcel = '__test__/resources/resourcesData.xlsx';
         

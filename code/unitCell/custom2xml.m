@@ -1,5 +1,5 @@
-function custom2xml(fileIn,fileOut,name)
-% takes a custom input file and converts it the the xml storage file used
+function lattice2xml(fileIn,fileOut,name)
+% takes a lattice input file and converts it the the xml storage file used
 % by the PLG
 if ~exist('fileOut','var')
     [~,fileOut,~] = fileparts(fileIn);
@@ -9,7 +9,7 @@ if ~exist('name','var')
     [~,name,~] = fileparts(fileIn);
 end
 
-%% load the custom file
+%% load the lattice file
 data = csvread(fileIn);
 numNodes=data(1,1);
 numLinks=data(2,1);

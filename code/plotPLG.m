@@ -1,5 +1,5 @@
 classdef plotPLG
-    % plotPLG will plot custom files with desired settings.
+    % plotPLG will plot lattice files with desired settings.
     properties (SetAccess=protected)
         f
         a
@@ -41,10 +41,10 @@ classdef plotPLG
     end
     methods (Access=private) % called when plotPLG is used
         function obj = load(obj,file)
-            % load a custom beam input file to generate a lattice structure
+            % load a lattice input file to generate a lattice structure
             [~,~,ext] = fileparts(file);
-            if ~strcmp(ext,'.custom')
-                error('Load in format must be .custom');
+            if ~strcmp(ext,'.lattice')
+                error('Load in format must be a .lattice');
             end
             
             data = csvread(file);
@@ -70,7 +70,7 @@ classdef plotPLG
             obj.f = figure;
             obj.f.Units	= 'centimeters';
             obj.f.Position = [3,3,18,12];
-            obj.f.Name = 'PLG custom file plot';
+            obj.f.Name = 'PLG custom lattice plot';
             
             % create an axes with the limits== extents of the lattice
             obj.a = axes;

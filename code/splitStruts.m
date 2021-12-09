@@ -1,5 +1,5 @@
 classdef splitStruts < PLG
-    % enables splitting of a bad custom file where beam do interesect but this is not present in the
+    % enables splitting of a bad lattice file where beam do interesect but this is not present in the
     % file. splitStruts will identify these and split the beams into 2
     
     properties

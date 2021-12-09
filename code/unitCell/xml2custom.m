@@ -1,10 +1,10 @@
-function xml2custom(fileIn,fileOut,diameter)
+function xml2lattice(fileIn,fileOut,diameter)
 if ~exist('diameter','var')
     diameter=1;
 end
 if ~exist('fileOut','var')
     [~,fileOut,~] = fileparts(fileIn);
-    fileOut = [fileOut,'.custom'];
+    fileOut = [fileOut,'.lattice'];
 end
 %% load the xml file
 xmlDocument = xmlread(fileIn);
@@ -35,7 +35,7 @@ for inc = 1:numStruts
     struts(inc,:) = [s1,s2];
 end
 
-%% save out the data to a custom file
+%% save out the data to a lattice file
 dlmwrite(fileOut,[numVerts;numStruts]);
 data = [vertices,ones(numVerts,1)*diameter];
 dlmwrite(fileOut,data,'-append');

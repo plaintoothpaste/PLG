@@ -1,6 +1,6 @@
 classdef manufacturabilityColour < PLG
-    % enables the custom colouring of a file based on manufaturability
-    % constraints
+    % manufacturabilityColour enables the custom colouring of a lattice file 
+    % based on manufaturability constraints
     properties
         incline
         strutLength

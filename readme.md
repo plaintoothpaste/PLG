@@ -8,16 +8,16 @@ Author(s): Matthew McMillan, David downing, Martin Leary
 
 TODO
 
-*   [critical] custom -> .lattice file
+*   [critical] custom -> .lattice file - started
 *   [critical] update tests to work in the new format.
 *   [critical]test demos in the new format.
 *   [critical] radial code fold in.
 *   [critical] demo for radial.
-*   [medium] better comments in methods.
-*   [critical] [paper] fill out tech stack table.
+*   [low] better comments in methods - started for PLG.
+
 
 DONE
-
+*   [critical] [paper] fill out tech stack table.
 *   [critical] other BCC
 
 LAST UPDATE: 08.12.2021
