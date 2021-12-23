@@ -8,9 +8,6 @@ Author(s): Matthew McMillan, David downing, Martin Leary
 
 TODO
 
-*   [critical] custom -> .lattice file
-*   [critical] update tests to work in the new format.
-*   [critical]test demos in the new format.
 *   [critical] radial code fold in.
 *   [critical] demo for radial.
 *   [medium] better comments in methods.
@@ -18,6 +15,9 @@ TODO
 
 DONE
 
+*   [critical]test demos in the new format.
+*   [critical] custom -> .lattice file
+*   [critical] update tests to work in the new format.
 *   [critical] other BCC
 
 LAST UPDATE: 08.12.2021
@@ -38,6 +38,7 @@ The general overview of use for the PLG is as follows:
 8. save the data using a **save** method.
 
 ```matlab
+% dia, usX,usY,usZ, repX,repY,repZ must be defined to use this example
 obj = PLG() % no input creates an empty object
 obj = set(obj,'resolution',20);
 obj = set(obj,'sphereResolution',12);
@@ -289,7 +290,6 @@ objZ = rotate(objX,0,90,0);
 objZ = translate(objZ,0,0,cornerSpacing);
 %plot(objX+objY+objZ);
 
-
 %% make diagonals
 obj = PLG;
 obj = set(obj,'resolution',20);
@@ -321,9 +321,9 @@ obj = objX+objY+objZ+cornerObj+diagXZ+diagYZ;
 obj = cleanLattice(obj);
 obj = set(obj,'sphereResolution',20);
 save3mf(obj,'complexLattice.3mf');
-saveCustom(obj,'complexLattice.custom');
+saveLattice(obj,'complexLattice.lattice');
 %% save out a version with support
-obj = addSupport('complexLattice.custom',diameter/4,0,10,0.1); % add support to all points above minZ to minz (that require it)
+obj = addSupport('complexLattice.lattice',diameter/4,0,10,0.1); % add support to all points above minZ to minz (that require it)
 obj = padSupport(obj,0.9,diameter/4,0); % extend/add support by a given length with a given strut and ball dia
 obj = set(obj,'sphereResolution',12);
 obj = set(obj,'resolution',20);

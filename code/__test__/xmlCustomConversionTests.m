@@ -1,35 +1,34 @@
 classdef xmlCustomConversionTests < matlab.unittest.TestCase
-    % tests to check that conversion from xml to custom and back again is
+    % tests to check that conversion from xml to lattice and back again is
     % working correctly.
     properties
         xml_default = '__test__/test_cube.xml';
-        custom_default = '__test__/test_cube.custom';
+        lattice_default = '__test__/test_cube.lattice';
         xml_tmp = '__test__/test_cube_tmp.xml';
-        custom_tmp = '__test__/test_cube_tmp.custom';
+        lattice_tmp = '__test__/test_cube_tmp.lattice';
     end
     methods (Test,TestTags = {'conversion','unit'})
-        function test_xml2custom(testCase)
-            %    test_xml2custom
-            % xml to custom creates a correct file
+        function test_xml2lattice(testCase)
+            %    test_xml2lattice
             
             % run
-            xml2custom(testCase.xml_default,testCase.custom_tmp,0.1);
+            xml2lattice(testCase.xml_default,testCase.lattice_tmp,0.1);
             
             % load and verify
-            exp_data = loadCustom(testCase.custom_default);
-            act_data = loadCustom(testCase.custom_tmp);
+            exp_data = loadLattice(testCase.lattice_default);
+            act_data = loadLattice(testCase.lattice_tmp);
             testCase.verifyEqual(act_data.vertices, exp_data.vertices);
             testCase.verifyEqual(act_data.struts, exp_data.struts);
             
             % clean up
-            delete(testCase.custom_tmp);
+            delete(testCase.lattice_tmp);
         end
-        function test_custom2xml(testCase)
-            %    test_custom2xml
+        function test_lattice2xml(testCase)
+            %    test_lattice2xml
             % custom to xml test
             
             % run
-            custom2xml(testCase.custom_default,testCase.xml_tmp);
+            lattice2xml(testCase.lattice_default,testCase.xml_tmp);
             
             % load and verify
             exp_data = loadXml(testCase.xml_default);
@@ -60,8 +59,8 @@ classdef xmlCustomConversionTests < matlab.unittest.TestCase
         end
     end % TestClassTeardown
 end % classdef
-function d = loadCustom(file)
-    % load a custom file for testing only
+function d = loadLattice(file)
+    % load a lattice file for testing only
     data = csvread(file);
     num_nodes=data(1,1);
     num_links=data(2,1);

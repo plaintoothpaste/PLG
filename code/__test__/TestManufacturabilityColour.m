@@ -4,12 +4,12 @@ classdef TestManufacturabilityColour < matlab.unittest.TestCase
     
     properties
         inputProc = '__test__/resources/basicProcessMap.csv'
-        inputCust = '__test__/resources/basicGeom.custom';
+        inputLattice = '__test__/resources/basicGeom.lattice';
         
         inputExcel = '__test__/resources/resourcesData.xlsx';
         
         sheetProc = 'procMap';
-        sheetCust = 'basicGeom';
+        sheetLattice = 'basicGeom';
     end
     
     methods (Test,TestTags = {'unit'})
@@ -55,7 +55,7 @@ classdef TestManufacturabilityColour < matlab.unittest.TestCase
         function testReadProcessMap(testCase)
             %    testReadProcessMap
             % test that the reading of csv process maps is correct
-            obj = manufacturabilityColour(testCase.inputCust);
+            obj = manufacturabilityColour(testCase.inputLattice);
             actRes = readProcMap(obj,testCase.inputProc);
             
             testCase.verifyEqual(actRes.dia,[0.2;0.5;1;4]);
@@ -67,7 +67,7 @@ classdef TestManufacturabilityColour < matlab.unittest.TestCase
         function testStrutLengthAndIncline(testCase)
             %    testStrutLength
             % test that strutLength and incline are correct
-            obj = manufacturabilityColour(testCase.inputCust);
+            obj = manufacturabilityColour(testCase.inputLattice);
             actRes = testLengthIncline(obj,testCase.inputProc);
             
             testCase.verifyEqual(actRes.dia,[0.1;0.175;0.25;0.325;0.4;0.475;0.55;0.625;0.7;0.775]);
@@ -77,7 +77,7 @@ classdef TestManufacturabilityColour < matlab.unittest.TestCase
             %    testInterpIndex
             % test interpretation of index number
             incer = [1;4;7];
-            obj = manufacturabilityColour(testCase.inputCust);
+            obj = manufacturabilityColour(testCase.inputLattice);
             actRes = testInterpIndex(obj,testCase.inputProc,incer);
             
             testCase.verifyEqual(actRes.inclineI,[1;2;4]);
@@ -88,7 +88,7 @@ classdef TestManufacturabilityColour < matlab.unittest.TestCase
     methods (Test,TestTags = {'integration'})
         function testBasicRun(testCase)
             % test that the colours array is succefully generated
-            obj = manufacturabilityColour(testCase.inputCust);
+            obj = manufacturabilityColour(testCase.inputLattice);
             obj = runManufacturability(obj,testCase.inputProc);
             
             actColours = obj.colour([1,4,7],:);
@@ -97,7 +97,7 @@ classdef TestManufacturabilityColour < matlab.unittest.TestCase
         end
         function testBasicPlot(testCase)
             % test plotting
-            obj = manufacturabilityColour(testCase.inputCust);
+            obj = manufacturabilityColour(testCase.inputLattice);
             obj = runManufacturability(obj,testCase.inputProc);
             
             % warning visual only validation
@@ -115,9 +115,9 @@ classdef TestManufacturabilityColour < matlab.unittest.TestCase
             end
             
             % run expansion of excel file into csv
-            data = xlsread(testCase.inputExcel,testCase.sheetCust);
+            data = xlsread(testCase.inputExcel,testCase.sheetLattice);
             data(:,5:end) = [];
-            csvwrite(testCase.inputCust,data);
+            csvwrite(testCase.inputLattice,data);
             
             [~,~,data] = xlsread(testCase.inputExcel,testCase.sheetProc);
             fid = fopen(testCase.inputProc,'w');
@@ -128,7 +128,7 @@ classdef TestManufacturabilityColour < matlab.unittest.TestCase
     end
     methods (TestClassTeardown)
         function teardown(testCase)
-            delete(testCase.inputCust);
+            delete(testCase.inputLattice);
             delete(testCase.inputProc);
         end
     end

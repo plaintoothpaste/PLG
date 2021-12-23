@@ -24,13 +24,13 @@ classdef PLG
         
         loadExtensions = {'xml','custom unit cell file defined as a xml';...
                           'stl', 'standard unit cell file';...
-                          'custom','standard beam output of PLG';...
+                          'lattice','standard beam output of PLG';...
                           'csv','manualy defined beam model';...
                           'xlsx','manualy defined beam model'};
         saveExtensions = {'*.stl', 'binary facet representation (compatibility)';...
                           '*.3mf', 'tesselated facet file (recommended)';...
-                          '*.custom', 'beam output method (simulation)';...
-                          '*.inp', 'Abaqus input file (TODO)'};
+                          '*.lattice', 'lattice beam output method (to use in PLG in the future)';...
+                          '*.inp', 'Abaqus input file'};
         
         tolerance; % defined as 1/100 of the shortest length present
     end
@@ -43,7 +43,6 @@ classdef PLG
             switch numel(varargin)
                 case 0
                     % generate a new lattice
-                    disp('generating a lattice from scratch');
                 case 1
                     % import a custom lattice file containing beam and node
                     % definitions see load function for more information
@@ -179,8 +178,8 @@ classdef PLG
         function plot(obj,colours)
             f = figure;
             f.Units	= 'Normalized';
-            f.Position = [0,0,1,1];
-            f.Name = 'STL plotter';
+            f.Position = [0.1,0.1,0.8,0.8];
+            f.Name = 'PLG plotter';
             a = axes;
             a.View = [45,45];
             axis vis3d
@@ -211,7 +210,7 @@ classdef PLG
                 case 2
                     save3mf(obj,file)
                 case 3
-                    saveCustom(obj,file)
+                    saveLattice(obj,file)
                 case 4
                     saveAbaqus(obj,file)
                 otherwise
@@ -385,7 +384,7 @@ classdef PLG
             xlswrite(fileName,summaryRedun,'Sheet1','J4');
         end
         function obj = load(obj,file)
-            % load a custom beam input file to generate a lattice structure
+            % load a lattice beam input file to generate a lattice structure
             parts = strsplit(file,'.');
             extension = parts{end};
             switch extension
@@ -398,13 +397,13 @@ classdef PLG
                     %TODO
                     error('use unitCell/stl2unitCell.m to convert to a xml for loading')
                 case obj.loadExtensions{3,1}
-                    % custom - assumes custom model type
+                    % lattice - assumes lattice model type
                     data = csvread(file);
                 case obj.loadExtensions{4,1}
-                    % csv - assumes custom model type
+                    % csv - assumes lattice model type
                     data = csvread(file);
                 case obj.loadExtensions{5,1}
-                    % exvel - assumes custom model
+                    % exvel - assumes lattice model type
                     data = xlsread(file);
                 otherwise
                     error('not a suitable load format');
@@ -519,9 +518,10 @@ classdef PLG
             
             fclose(fid);
         end
-        function saveCustom(obj,fullName)
-            % saves data to a csv file with the .custom extension usefull as a beam model input to
-            % simulations
+        function saveLattice(obj,fullName)
+            % saves data to a csv file with the .lattice extension useful
+            % if you want to keep the data and use in the PLG again in the
+            % future.
             obj = cleanLattice(obj);
             
             % write out the data
@@ -680,8 +680,8 @@ classdef PLG
             mkdir('_rels');
             mkdir('3D');
             xmlwrite(['3D',filesep,'3dmodel.model'],xmlObject);
-            copyfile([obj.runLocation,filesep,'other/.rels'],'_rels/.rels');
-            copyfile([obj.runLocation,filesep,'other/[Content_Types].xml'],'[Content_Types].xml');
+            copyfile([obj.runLocation,filesep,'for_3mf/.rels'],'_rels/.rels');
+            copyfile([obj.runLocation,filesep,'for_3mf/[Content_Types].xml'],'[Content_Types].xml');
             zip('out',{'_rels','3D','[Content_Types].xml'});
             movefile('out.zip',fullName,'f');
             
@@ -913,7 +913,7 @@ classdef PLG
             numStruts = size(obj.struts,1);
             for inc = 1:numStruts
                 % convert a strut to a transform
-                currentTransform = custom2tramsform(obj,inc);
+                currentTransform = lattice2transform(obj,inc);
                 str = sprintf('%5.5f ',currentTransform);
                 str(end) = [];
                 
@@ -964,7 +964,7 @@ classdef PLG
                 end
             end
         end
-        function transform = custom2tramsform(obj,inc)
+        function transform = lattice2transform(obj,inc)
             verts = [0,0,-0.5;0,0,0.5];
             thirdPoint = verts(1,:)+[0.5,0,0];
             forthPoint = verts(2,:)+[0,0.5,0];
