@@ -1,11 +1,11 @@
-classdef xmlLatticeConversionTests < matlab.unittest.TestCase
+classdef TestXmlLatticeConversion < matlab.unittest.TestCase
     % tests to check that conversion from xml to lattice and back again is
     % working correctly.
     properties
-        xml_default = '__test__/test_cube.xml';
-        lattice_default = '__test__/test_cube.lattice';
-        xml_tmp = '__test__/test_cube_tmp.xml';
-        lattice_tmp = '__test__/test_cube_tmp.lattice';
+        xml_default = '__test__/resources/test_cube.xml';
+        lattice_default = '__test__/resources/test_cube.lattice';
+        xml_tmp = '__test__/resources/test_cube_tmp.xml';
+        lattice_tmp = '__test__/resources/test_cube_tmp.lattice';
     end
     methods (Test,TestTags = {'conversion','unit'})
         function test_xml2lattice(testCase)

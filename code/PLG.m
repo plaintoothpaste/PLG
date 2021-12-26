@@ -430,24 +430,24 @@ classdef PLG
             extension = parts{end};
             switch extension
                 case obj.loadExtensions{1,1}
-                    % xml - use unitCell class
-                    %TODO
-                    error('use unit generate to load file')
+                    % xml - use xml2lattice first or use as a unit cell
+                    error('PLG:load','XML is not a suitable load format use xml2lattice if desired.');
                 case obj.loadExtensions{2,1}
                     % stl - use stlHandler class
-                    %TODO
-                    error('use unitCell/stl2unitCell.m to convert to a xml for loading')
+                    error('PLG:load','A stl file is not a suitable input for the PLG function use stlHandler.');
                 case obj.loadExtensions{3,1}
                     % lattice - assumes lattice model type
                     data = csvread(file);
                 case obj.loadExtensions{4,1}
                     % csv - assumes lattice model type
+                    warning('PLG:load','A csv will be loaded assuming it is the same format as a .lattice file.');
                     data = csvread(file);
                 case obj.loadExtensions{5,1}
                     % excel - assumes lattice model
+                    warning('PLG:load','A excel will be loaded assuming it is the same format as a .lattice file.');
                     data = xlsread(file);
                 otherwise
-                    error('not a suitable load format');
+                    error('PLG:load','Not a suitable load format, a .lattice file is prefered.');
             end
             numNodes=data(1,1);
             numLinks=data(2,1);
