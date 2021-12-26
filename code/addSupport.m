@@ -1,7 +1,6 @@
 classdef addSupport < PLG
     %ADDSUPPORT subclass of PLG for adding support elements.
-    %    A lattice file can be loaded and this class will add elements of the 
-    %    users desired diameter from a supported node to the lowest z normal node
+    %    A lattice file can be loaded and this class will add elements of the users desired diameter from a supported node to the lowest z normal node
     
     properties
         % see PLG

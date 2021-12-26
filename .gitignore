@@ -2,6 +2,7 @@
 *.custom
 *.inp
 *.3mf
-
+*.asv
+results/*
 # so that matlab file will not be introduced to git
 *.lic

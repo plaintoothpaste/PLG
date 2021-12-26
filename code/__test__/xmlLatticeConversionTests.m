@@ -8,12 +8,11 @@ classdef xmlLatticeConversionTests < matlab.unittest.TestCase
         lattice_tmp = '__test__/test_cube_tmp.lattice';
     end
     methods (Test,TestTags = {'conversion','unit'})
-        function test_xml2Lattice(testCase)
-            %    test_xml2Lattice
-            % xml to lattice creates a correct file
+        function test_xml2lattice(testCase)
+            %    test_xml2lattice
             
             % run
-            xml2Lattice(testCase.xml_default,testCase.lattice_tmp,0.1);
+            xml2lattice(testCase.xml_default,testCase.lattice_tmp,0.1);
             
             % load and verify
             exp_data = loadLattice(testCase.lattice_default);

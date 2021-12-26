@@ -32,8 +32,8 @@ classdef PLG
                           'xlsx','manualy defined beam model'};
         saveExtensions = {'*.stl', 'binary facet representation (compatibility)';...
                           '*.3mf', 'tesselated facet file (recommended)';...
-                          '*.lattice', 'Basic output method (use for PLG)';...
-                          '*.inp', 'Abaqus input file.'};
+                          '*.lattice', 'lattice beam output method (to use in PLG in the future)';...
+                          '*.inp', 'Abaqus input file'};
         
         tolerance; % defined as 1/100 of the shortest length present
     end
@@ -46,7 +46,6 @@ classdef PLG
             switch numel(varargin)
                 case 0
                     % generate a new lattice
-                    disp('Generating a new lattice');
                 case 1
                     % import a custom lattice file containing beam and node
                     % definitions see load function for more information
@@ -201,8 +200,8 @@ classdef PLG
             %    Return void.
             f = figure;
             f.Units	= 'Normalized';
-            f.Position = [0,0,1,1];
-            f.Name = 'Strut plotter';
+            f.Position = [0.1,0.1,0.8,0.8];
+            f.Name = 'PLG plotter';
             a = axes;
             a.View = [45,45];
             axis vis3d
@@ -221,6 +220,24 @@ classdef PLG
             xlabel('x')
             ylabel('y')
             zlabel('z')
+        end
+        function save(obj)
+            % this overloads the save function and allows saving out in various
+            % formats however this only saves the latticeStructure structure
+            [fileName,pathName,filterIndex] = uiputfile(obj.saveExtensions);
+            file = [pathName,fileName];
+            switch filterIndex
+                case 1
+                    saveStl(obj,file);
+                case 2
+                    save3mf(obj,file)
+                case 3
+                    saveLattice(obj,file)
+                case 4
+                    saveAbaqus(obj,file)
+                otherwise
+                    error('No file saved')
+            end
         end
     end
     methods % lattice manipulations
@@ -448,27 +465,6 @@ classdef PLG
         end
     end          
     methods % save out methods
-        function save(obj)
-            % save Overloads the save function and opens a gui save.
-            %    Allows saving out in various standard formats specified in
-            %    the properties.
-            %    Note: the individual save functions can be used if a non 
-            %    gui option is desired.
-            [fileName,pathName,filterIndex] = uiputfile(obj.saveExtensions);
-            file = [pathName,fileName];
-            switch filterIndex
-                case 1
-                    saveStl(obj,file);
-                case 2
-                    save3mf(obj,file)
-                case 3
-                    saveLattice(obj,file)
-                case 4
-                    saveAbaqus(obj,file)
-                otherwise
-                    error('No file saved')
-            end
-        end
         function saveStl(obj,fullName)
             % saveStl Save out an stl file
             
@@ -729,8 +725,8 @@ classdef PLG
             mkdir('_rels');
             mkdir('3D');
             xmlwrite(['3D',filesep,'3dmodel.model'],xmlObject);
-            copyfile([obj.runLocation,filesep,'other/.rels'],'_rels/.rels');
-            copyfile([obj.runLocation,filesep,'other/[Content_Types].xml'],'[Content_Types].xml');
+            copyfile([obj.runLocation,filesep,'for_3mf/.rels'],'_rels/.rels');
+            copyfile([obj.runLocation,filesep,'for_3mf/[Content_Types].xml'],'[Content_Types].xml');
             zip('out',{'_rels','3D','[Content_Types].xml'});
             movefile('out.zip',fullName,'f');
             
@@ -962,7 +958,7 @@ classdef PLG
             numStruts = size(obj.struts,1);
             for inc = 1:numStruts
                 % convert a strut to a transform
-                currentTransform = beam2tramsform(obj,inc);
+                currentTransform = lattice2transform(obj,inc);
                 str = sprintf('%5.5f ',currentTransform);
                 str(end) = [];
                 
