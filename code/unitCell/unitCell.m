@@ -15,8 +15,8 @@ classdef unitCell
     
     methods
         function obj = unitCell(names,plgObj)
-            %UNITCELL Constructs this class as loads a unit cell and then
-            %scales is
+            %    unitCell Constructs an object with a single unit cell and 
+            % then scales it
             obj.plgObj = plgObj;
             for inc = 1:length(names)
                 obj = load(obj,names{inc});

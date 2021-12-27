@@ -193,11 +193,12 @@ classdef PLG
                 obj.sphereDiameter(unusedInds) = [];
             end
         end
-        function plot(obj,colours)
+        function [f,a] = plot(obj,colours)
             % plot makes a basic plot of the lattices 
             %    colours - a single colour for all struts or a nx3 array of
             %    colours where n is the length of struts.
-            %    Return void.
+            %    Returns f-figure handle.
+            %    Returns a-axes handle.
             f = figure;
             f.Units	= 'Normalized';
             f.Position = [0.1,0.1,0.8,0.8];
@@ -208,7 +209,7 @@ classdef PLG
             a.NextPlot='add';
             numStruts = length(obj.strutDiameter);
             if ~exist('colours','var')
-                colours = repmat([0.3,0.3,0.3,0.5],numStruts,1);
+                colours = repmat([0.1,0.1,1.0,0.5],numStruts,1);
             end
             for inc = 1:numStruts
                 points = [obj.vertices(obj.struts(inc,1),:);obj.vertices(obj.struts(inc,2),:)];

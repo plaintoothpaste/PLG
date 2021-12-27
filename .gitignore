@@ -1,8 +1,8 @@
 *.stl
-*.custom
+*.lattice
 *.inp
 *.3mf
 *.asv
-results/*
+results/*.png
 # so that matlab file will not be introduced to git
 *.lic

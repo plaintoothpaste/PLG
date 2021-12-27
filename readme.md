@@ -8,14 +8,15 @@ Author(s): Matthew McMillan, David downing, Martin Leary
 
 TODO
 
+*   [critical] [paper] fill out tech stack table.
 *   [critical] radial code fold in.
 *   [critical] demo for radial.
 *   [low] better comments in methods - started for PLG.
 
 
 DONE
-*   [critical] [paper] fill out tech stack table.
-*   [critical]test demos in the new format.
+*   [mediumx] fold in david unit cell plots / automate
+*   [critical] test demos in the new format.
 *   [critical] custom -> .lattice file
 *   [critical] update tests to work in the new format.
 *   [critical] other BCC
@@ -76,16 +77,46 @@ The following is a list of methods and a quick overview of their function, it sh
 ## Available unit cells
 The following is a list of presently available unit cells. Custom unit cells can be created from any custom file see **generating a unit cell** for structure of xml file:
 
-| Name               |                            Image                             | Description                                                  |
-| :----------------- | :----------------------------------------------------------: | ------------------------------------------------------------ |
-| bcc                |            ![BCC](__readMeResources__\bcc_cr.png)            | Cross from the <br>centre of each face.                      |
-| centreCross        |    ![centreCross](__readMeResources__\centreCross_cr.png)    | cross from the centre <br>of each face to the centre         |
-| horizontalFaceRods | ![horizontalFaceRods](__readMeResources__\horizontalFaceRods_cr.png) | shape on the two planes, top and bottom,<br>that are perpendicular to the z axis. |
-| verticalFaceRods   | ![verticalFaceRods](__readMeResources__\VerticalFaceRods_cr.png) | x shape on all the faces that are <br>NOT perpendicular to the z axis. |
-| xRods              |          ![xRods](__readMeResources__\xRods_cr.png)          | struts on all edges of the cube<br>that are parallel to the x axis. |
-| yRods              |          ![yRods](__readMeResources__\yRods_cr.png)          | struts on all edges of the cube <br>that are parallel to the y axis. |
-| zRods              |          ![zRods](__readMeResources__\zRods_cr.png)          | struts on all edges of the cube <br>that are parallel to the z axis. |
-| generalCorner      |       ![generalCorner](__readMeResources__\bcc_cr.png)       | a shape that allows for joining of a unit cell at 90 and 45 degrees about all axis where its scaler value is the size of the unit cell you wish to attach too, See complex example. |
+### BCC
+Cross from each corner to the centre. 
+
+![BCC](__readMeResources__/bcc.png)
+
+### centreCross
+Cross from the centre of each face to the centre of the unit cell.
+
+![centreCross](__readMeResources__/centreCross.png)
+
+### horizontalFaceRods 
+X shape on the two planes, top and bottom,that are perpendicular to the z axis.
+
+![horizontalFaceRods](__readMeResources__/horizontalFaceRods.png)
+
+### verticalFaceRods   
+X shape on all the faces that are <br>NOT perpendicular to the z axis.
+
+![verticalFaceRods](__readMeResources__/verticalFaceRods.png)
+
+### xRods
+Struts on all edges of the cube that are parallel to the x axis.
+
+![xRods](__readMeResources__/xRods.png) 
+
+### yRods
+Struts on all edges of the cube that are parallel to the y axis.
+
+![yRods](__readMeResources__/yRods.png) 
+
+### zRods
+Struts on all edges of the cube that are parallel to the z axis.
+
+![zRods](__readMeResources__/zRods.png)
+
+### generalCorner 
+a shape that allows for joining of a unit cell at 90 and 45 degrees about all axis where its scaler value is the size of the unit cell you wish to attach too, See complex example.
+
+![generalCorner](__readMeResources__/generalCorner.png)
+
 
 ## Properties
 properties of the PLG are defined using the set method to ensure that only the correct type can be used.
@@ -155,10 +186,9 @@ plotPLG(file_in.custom);
 ```
 
 
-
 # Demos
 
-The following sections contains demonstration files that can be run in MATLAB. These examples are also run automatically in code ocean.
+The following sections contains demonstration files that can be run in MATLAB. These examples are also run automatically in code ocean. or by calling `runDemos`.
 
 ## Regular BCC lattice
 
