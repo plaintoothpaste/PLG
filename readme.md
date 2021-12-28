@@ -9,13 +9,12 @@ Author(s): Matthew McMillan, David downing, Martin Leary
 TODO
 
 *   [critical] [paper] fill out tech stack table.
-*   [critical] radial code fold in.
-*   [critical] demo for radial.
 *   [low] better comments in methods - started for PLG.
 
-
 DONE
-*   [mediumx] fold in david unit cell plots / automate
+*   [critical] radial code fold in.
+*   [critical] demo for radial.
+*   [medium] fold in david unit cell plots / automate
 *   [critical] test demos in the new format.
 *   [critical] custom -> .lattice file
 *   [critical] update tests to work in the new format.
@@ -25,7 +24,7 @@ LAST UPDATE: 08.12.2021
 
 [TOC]
 
-## General use
+# General use
 
 The general overview of use for the PLG is as follows:
 
@@ -117,7 +116,6 @@ a shape that allows for joining of a unit cell at 90 and 45 degrees about all ax
 
 ![generalCorner](__readMeResources__/generalCorner.png)
 
-
 ## Properties
 properties of the PLG are defined using the set method to ensure that only the correct type can be used.
 ``` matlab
@@ -133,11 +131,14 @@ obj = set(obj,'name',value);
 * replications - specifies the number of copies of the unit cell - 3x1 vector of integers
 * origin - starting location for the centre of the initial unit cell - 3x1 vector of floats - default value is [0,0,0]
 
-## Testing
+# Testing
 
-This section needs to be filled in.
+Tests are run using `runTest(tag)` and all tests will be run by default if no tag is specified. It a tag string is specified all matches will be run. The PLG consists of the following unit test classes:
+* TestBasic - Loading, saving transforms etc.
+* TestManufacturabilityColour
+* TestXmlLatticeConversion
 
-## Running in docker
+# Running in docker
 
 Though it is not recommended the project can be built from a cloned image and then run in docker. This is a 3 step process
 
@@ -158,33 +159,75 @@ docker run --rm \
 -v ${PWD}/data:/data \
 -v ${PWD}/results:/results \
 -v ${PWD}/license.lic:/MATLAB/licenses/network.lic \ 
+# you must also specify your machines mac address here
 code_ocean
 ```
 
-# custom2stl
+# Generating a custom unit cell
 
-A simple function that takes only a input and output. This is used to produce a stl from a custom format.
-
-```matlab
-custom2stl(file_in.custom,file_out.stl);
-```
-
-# custom2threemf
-
-A simple function that takes only a input and output. This is used to produce a [3mf](https://3mf.io/specification/) file from a custom format.
+unit cells are stored in a xml file to improve flexibility into the future, and minimise confusion with standard output of the program. There are two functions in `code/unitCell` to convert from xml to lattice and back again. Not that the xml file stores not diameter data.
 
 ```matlab
-custom2stl(file_in.custom,file_out.3mf);
+% fileIn - path to lattice file
+% fileOut - Optional, path to xml file. Otherwise uses fileIn to make path.
+% name - Optional, name placed in the xml file. Otherwise uses fileIn
+lattice2xml(fileIn,fileOut,name);
+
+% fileIn - path to xml file
+% fileOut - Optional, path to lattice file. Otherwise uses fileIn to make path.
+% diameter - Optional, diameter to apply to the lattice file. Otherwise 1 is applied.
+xml2lattice(fileIn,fileOut,diameter);
 ```
 
-# plotPLG
+All the default unit cells are all centred on [0,0,0] and have a bounding box of 1 unit to facilitate scaling. **General corner does not**. While this is not required it is recommended to maximise general application of your unit cell. A comparison between the xml and lattice file format is presented below.
 
-A class that enables plotting of custom files. The files can then be coloured based on various conditions
-
-```matlab
-plotPLG(file_in.custom);
+```xml
+<?xml version="1.0" encoding="utf-8"?>
+<mesh>
+   <vertices>
+      <vertex x="-0.5" y="-0.5" z="-0.5"/>
+      <vertex x="-0.5" y="-0.5" z="0.5"/>
+      <vertex x="-0.5" y="0.5" z="-0.5"/>
+      <vertex x="-0.5" y="0.5" z="0.5"/>
+      <vertex x="0" y="0" z="0"/>
+      <vertex x="0.5" y="-0.5" z="-0.5"/>
+      <vertex x="0.5" y="-0.5" z="0.5"/>
+      <vertex x="0.5" y="0.5" z="-0.5"/>
+      <vertex x="0.5" y="0.5" z="0.5"/>
+   </vertices>
+   <struts name="bcc" type="beam">
+      <strut v1="1" v2="5"/>
+      <strut v1="2" v2="5"/>
+      <strut v1="3" v2="5"/>
+      <strut v1="4" v2="5"/>
+      <strut v1="5" v2="6"/>
+      <strut v1="5" v2="7"/>
+      <strut v1="5" v2="8"/>
+      <strut v1="5" v2="9"/>
+   </struts>
+</mesh>
 ```
-
+ ```
+9
+8
+-0.5, -0.5, -0.5, 1.25
+-0.5, -0.5,  0.5, 1.25
+-0.5,  0.5, -0.5, 1.25
+-0.5,  0.5,  0.5, 1.25
+ 0.0,  0.0,  0.0, 1.25
+ 0.5, -0.5, -0.5, 1.25
+ 0.5, -0.5,  0.5, 1.25
+ 0.5,  0.5, -0.5, 1.25
+ 0.5,  0.5,  0.5, 1.25
+1, 5, 1
+2, 5, 1
+3, 5, 1
+4, 5, 1
+5, 6, 1
+5, 7, 1
+5, 8, 1
+5, 9, 1
+ ```
 
 # Demos
 
@@ -217,7 +260,6 @@ save3mf(obj,'exampleOut.3mf');
 ![flatBase](__readMeResources__\baseFlat.png)
 
 ## Dual density BCZ lattice
-
 A 3x3x6 5mm unit cell BCZ lattice will be created with a higher density strut diameter of 0.8mm on the top and bottom two row and no z struts in the centre two rows with a 0.5mm diameter.
 
 ```matlab
@@ -352,23 +394,17 @@ obj = cleanLattice(obj);
 obj = set(obj,'sphereResolution',20);
 save3mf(obj,'complexLattice.3mf');
 saveLattice(obj,'complexLattice.lattice');
-%% save out a version with support
-obj = addSupport('complexLattice.lattice',diameter/4,0,10,0.1); % add support to all points above minZ to minz (that require it)
-obj = padSupport(obj,0.9,diameter/4,0); % extend/add support by a given length with a given strut and ball dia
-obj = set(obj,'sphereResolution',12);
-obj = set(obj,'resolution',20);
-save3mf(obj,'complexLatticeSupported.3mf');
-obj = set(obj,'baseFlat',true);
-save3mf(obj,'complexLatticeSupportedFlatBall.3mf');
 ```
 
 ![complexExampleWithSupport](__readMeResources__\complexExample.png)
 
-# Special use cases
-
-The following use subclasses or are not commonly implemented.
+# Extending the PLG 
+In many cases there will be special features that are desireable but outside of the primary scope of the code. to accomadate this a subclass should be made. See `splitStruts` for the most complex example and `radialPLG` for the simplest.
 
 ## Adding Support
+
+`addSupport`
+
 This class is a submethod of the PLG and enables the addition of support pins.
 To use this code you need a fully defined custom file already. in complex example this class is used
 This class is not intended for lattice generation but enables the use of the following methods:
@@ -387,97 +423,28 @@ save3mf(obj,'geometryWithSupport.3mf');
 ![complexExampleWithSupport](__readMeResources__\complexExample.png)
 ![complexExampleWithSupportZoom](__readMeResources__\complexExampleZoom.png)
 
-## splitStrut
-Enables splitting of a bad custom file where beam do interesect but this is not present in the file. splitStruts will identify these and split the beams in two.
+## Splitting intersecting struts
 
-## Generating a custom unit cell
-unit cells are stored in a xml file to improve flexibility into the future, and minimise confusion with standard output of the program. There are two functions in `code/unitCell` to convert from xml to custom and back again. Not that the xml file stores not diameter data.
+`splitStruts`
+
+Enables splitting of a bad lattice file where beams interesect in space but there is no node present in the file. splitStruts will identify these and split the beams in two.
+
+## radialPLG
+
+Identical to the regular PLG but adds an option to tranform the cartesian coordinate system to a radial one. This is achived by setting the xvalues to the radius and the y values to the theta (in radians). The y values are not changed.
 
 ```matlab
-% fileIn - path to custom file
-% fileOut - Optional, path to xml file. Otherwise uses fileIn to make path.
-% name - Optional, name placed in the xml file. Otherwise uses fileIn
-custom2xml(fileIn,fileOut,name);
-
-% fileIn - path to xml file
-% fileOut - Optional, path to custom file. Otherwise uses fileIn to make path.
-% diameter - Optional, diameter to apply to the custom file. Otherwise 1 is applied.
-xml2custom(fileIn,fileOut,diameter);
+obj = radialPLG(); % no input creates an empty object
+obj = set(obj,'resolution',6);
+obj = set(obj,'sphereResolution',6);
+obj = set(obj,'strutDiameter',1);
+obj = set(obj,'sphereDiameter',1.25);
+obj = set(obj,'sphereAddition',true); % default value is false
+obj = set(obj,'unitSize',[2,2*pi/12,2]);
+obj = set(obj,'replications',[2,12,2]);
+obj = defineUnit(obj,{'bcc','zRods'});
+obj = cellReplication(obj); % requires the replications to be set
+obj = translate(obj,12,0,0);
+obj = cart2radial(obj);
+saveStl(obj,'../results/radial.stl');
 ```
-
-
-All the default unit cells are all centred on [0,0,0] and have a bounding box of 1 unit to facilitate scaling. **General corner does not**. While this is not required it is recommended to maximise general application of your unit cell. A comparison between the xml and custom is presented below.
-
-```xml
-<?xml version="1.0" encoding="utf-8"?>
-<mesh>
-   <vertices>
-      <vertex x="-0.5" y="-0.5" z="-0.5"/>
-      <vertex x="-0.5" y="-0.5" z="0.5"/>
-      <vertex x="-0.5" y="0.5" z="-0.5"/>
-      <vertex x="-0.5" y="0.5" z="0.5"/>
-      <vertex x="0" y="0" z="0"/>
-      <vertex x="0.5" y="-0.5" z="-0.5"/>
-      <vertex x="0.5" y="-0.5" z="0.5"/>
-      <vertex x="0.5" y="0.5" z="-0.5"/>
-      <vertex x="0.5" y="0.5" z="0.5"/>
-   </vertices>
-   <struts name="bcc" type="beam">
-      <strut v1="1" v2="5"/>
-      <strut v1="2" v2="5"/>
-      <strut v1="3" v2="5"/>
-      <strut v1="4" v2="5"/>
-      <strut v1="5" v2="6"/>
-      <strut v1="5" v2="7"/>
-      <strut v1="5" v2="8"/>
-      <strut v1="5" v2="9"/>
-   </struts>
-</mesh>
-```
- ```
-9
-8
--0.5, -0.5, -0.5, 1.25
--0.5, -0.5,  0.5, 1.25
--0.5,  0.5, -0.5, 1.25
--0.5,  0.5,  0.5, 1.25
- 0.0,  0.0,  0.0, 1.25
- 0.5, -0.5, -0.5, 1.25
- 0.5, -0.5,  0.5, 1.25
- 0.5,  0.5, -0.5, 1.25
- 0.5,  0.5,  0.5, 1.25
-1, 5, 1
-2, 5, 1
-3, 5, 1
-4, 5, 1
-5, 6, 1
-5, 7, 1
-5, 8, 1
-5, 9, 1
- ```
-
-
-
-## plgBatch
-This is a tool to make a large number of lattice structures. as its input it requires a directory containing at least one json file. Each json file will correspond to a single output file. The code must then be set according to the procedure below:
-
-1. Starting from top to bottom, set all properties. The properties under **TestParameter** will undergo a full factorial design.
-2. Scroll down to method and move the curser to the desired output style:
-  * runAllCombinations - runs through every single permutation of everything in **TestParameter**.
-  * squareUnitCell - uses only unitSizeX for all unit cell dimensions runs through all other **TestParameter**.
-  * squareLattice - uses only unitSizeX and repsX
-3. click on run current test in the menu bar (ctrl+enter). Alternatively run the following command:
-```results = run(plgBatch,'squareLattice')```
-4. Be patient matlab internally calculates the full factorial before begining to generate files this may take a while depending on the number of outputs
-
-### Make your own generation function
-Generating your own function may be the most usefull for your use case.
-1. create a function with the following format:
-```function functionNameHere(obj,desiredParameters)```
-  * functionNameHere - can be anything not already used and can not be plgBatch or PLG or any PLG functions you plan to call
-  * obj - the first input must be the class object itself. this is used to access any constant properties eg: obj.outputFolder
-  * desiredParameters - as seperate inputs place any variables in **TestParameter** that you wish to use. New parameters can also be added.
-2. follow above instructions
-
-**note:** depending on the number of inputs there can be a big lag between hitting run and the script generating data.
-Therefore it is recommended that you test a single output with a script before placing in this class.

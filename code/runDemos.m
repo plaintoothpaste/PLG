@@ -1,9 +1,11 @@
 %% A script that runs all demo files in the readme
-mostBasicDemo();
-regularBccLattice();
-dualDensityBccLattice();
-complexExample();
-
+% mostBasicDemo();
+% regularBccLattice();
+% dualDensityBccLattice();
+% complexExample();
+% addSupportToComplexExample();
+radialLattice();
+%% each demo is in its own function below
 function mostBasicDemo()
     dia = 1;
     us = 10;
@@ -174,8 +176,11 @@ function complexExample()
     obj = set(obj,'sphereResolution',20);
     save3mf(obj,'../results/complexLattice.3mf');
     saveLattice(obj,'../results/complexLattice.lattice');
+end
 
-    %% save out a version with support
+function addSupportToComplexExample()
+    % save out a version of the complex example with support
+    diameter = 0.5;
     obj = addSupport('../results/complexLattice.lattice',diameter/4,0,10,0.1); % add support to all points above minZ to minz (that require it)
     obj = padSupport(obj,0.9,diameter/4,0); % extend/add support by a given length with a given strut and ball dia
     obj = set(obj,'sphereResolution',12);
@@ -185,3 +190,21 @@ function complexExample()
     save3mf(obj,'../results/complexLatticeSupportedFlatBall.3mf');
 end
 
+function radialLattice()
+    % create a lattice in a radial format
+    obj = radialPLG(); % no input creates an empty object
+    obj = set(obj,'resolution',6);
+    obj = set(obj,'sphereResolution',6);
+    obj = set(obj,'strutDiameter',1);
+    obj = set(obj,'sphereDiameter',1.25);
+    obj = set(obj,'sphereAddition',true); % default value is false
+    obj = set(obj,'unitSize',[2,2*pi/12,2]);
+    obj = set(obj,'replications',[2,12,2]);
+    obj = defineUnit(obj,{'bcc','zRods'});
+    obj = cellReplication(obj); % requires the replications to be set
+    obj = translate(obj,12,0,0);
+    obj = cart2radial(obj);
+    saveStl(obj,'../results/radial.stl');
+
+
+end

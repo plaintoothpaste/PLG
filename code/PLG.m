@@ -959,7 +959,7 @@ classdef PLG
             numStruts = size(obj.struts,1);
             for inc = 1:numStruts
                 % convert a strut to a transform
-                currentTransform = lattice2transform(obj,inc);
+                currentTransform = beam2tramsform(obj,inc);
                 str = sprintf('%5.5f ',currentTransform);
                 str(end) = [];
                 
