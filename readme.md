@@ -8,10 +8,11 @@ Author(s): Matthew McMillan, David downing, Martin Leary
 
 TODO
 
-*   [critical] [paper] fill out tech stack table.
 *   [low] better comments in methods - started for PLG.
 
 DONE
+
+*   [critical] [paper] fill out tech stack table.
 *   [critical] radial code fold in.
 *   [critical] demo for radial.
 *   [medium] fold in david unit cell plots / automate
@@ -19,8 +20,6 @@ DONE
 *   [critical] custom -> .lattice file
 *   [critical] update tests to work in the new format.
 *   [critical] other BCC
-
-LAST UPDATE: 08.12.2021
 
 [TOC]
 
@@ -60,7 +59,7 @@ Be aware of the following:
 
 ## Methods
 
-The following is a list of methods and a quick overview of their function, it should obvious from the name what it is they do.
+The following is a list of methods and a quick overview of their function:
 - PLG: Initialise a PLG object: 0 inputs is an empty object, 1 input loads an existing custom file.
 - set: properties are protected (read-only) and can be adjusted using this method. Properties are set using name value pairs.
 - defineUnit: used to define the individual unit cell
@@ -85,7 +84,6 @@ Cross from each corner to the centre.
 This is the default BCC but shifted half a unit cell across. This results in a BCC lattice when repartitions are used but with no isolated struts on the edges.
 
 ![bccZoffset](__readMeResources__/bccZoffset.png)
-
 
 ### centreCross
 Cross from the centre of each face to the centre of the unit cell.
@@ -139,7 +137,6 @@ Struts on all edges of the cube that are parallel to the z axis.
 ![zRods](__readMeResources__/zRods.png)
 
 
-
 ## Properties
 properties of the PLG are defined using the set method to ensure that only the correct type can be used.
 ``` matlab
@@ -159,8 +156,8 @@ obj = set(obj,'name',value);
 
 Tests are run using `runTest(tag)` and all tests will be run by default if no tag is specified. It a tag string is specified all matches will be run. The PLG consists of the following unit test classes:
 * TestBasic - Loading, saving transforms etc.
-* TestManufacturabilityColour
-* TestXmlLatticeConversion
+* TestManufacturable - tests the manufacturablePLG extension
+* TestXmlLatticeConversion - checks that a .lattice file can be saved to a xml format and the reverse.
 
 # Running in docker
 
@@ -474,3 +471,27 @@ obj = translate(obj,12,0,0);
 obj = cart2radial(obj);
 saveStl(obj,'../results/radial.stl');
 ```
+## Manufacturability plotting
+
+`manufacturablePLG`
+
+When building a lattice in an additive manufacturing system there are constraints which typically relate to incline, span and diameter. This extension allows for loading of a csv file that specifies this manufacturability. Then latiice files can be plotted and viewed with manufacturability information overlayed.
+
+```matlab
+# see Conversion to polar coordinates
+```
+
+## Export of lattice statistics including maxwell number
+
+`statisticsPLG`
+
+Will analyse a .lattice file and save data to an excel report. This class is a childclass of `manufacturablePLG`
+
+```matlab
+# see Conversion to polar coordinates
+```
+
+## Conversion to polar coordinates
+`sphericalPLG`
+This subclass will create 3D polar corrdinates and is best shown with an example in `../results/sphericalLattice.m`. This file is run in `runDemo`
+
