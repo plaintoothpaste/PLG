@@ -76,20 +76,47 @@ The following is a list of methods and a quick overview of their function, it sh
 ## Available unit cells
 The following is a list of presently available unit cells. Custom unit cells can be created from any custom file see **generating a unit cell** for structure of xml file:
 
-### BCC
+### bcc
 Cross from each corner to the centre. 
 
-![BCC](__readMeResources__/bcc.png)
+![bcc](__readMeResources__/bcc.png)
+
+### bccZoffset
+This is the default BCC but shifted half a unit cell across. This results in a BCC lattice when repartitions are used but with no isolated struts on the edges.
+
+![bccZoffset](__readMeResources__/bccZoffset.png)
+
 
 ### centreCross
 Cross from the centre of each face to the centre of the unit cell.
 
 ![centreCross](__readMeResources__/centreCross.png)
 
+### diamond
+A diamond unit cell that connects the centres of each face together.
+
+![diamond](__readMeResources__/diamond.png)
+
+### generalCorner 
+a shape that allows for joining of a unit cell at 90 and 45 degrees about all axis where its scaler value is the size of the unit cell you wish to attach too, See complex example. This unit cell is larger then the default of -0.5 - 0.5.
+
+![generalCorner](__readMeResources__/generalCorner.png)
+
 ### horizontalFaceRods 
 X shape on the two planes, top and bottom,that are perpendicular to the z axis.
 
 ![horizontalFaceRods](__readMeResources__/horizontalFaceRods.png)
+
+### kelvinCell
+The [Kelvin Cell](https://iopscience.iop.org/article/10.1088/1742-6596/158/1/012005/pdf), or tetrakaidecahedron, consists of six flat quadrilateral and eight hexagonal faces, which have a subtle curvature. It can be packed to fill all space, in a body-centred cubic arrangement.
+
+![kelvinCell](__readMeResources__/kelvinCell.png)
+
+### octetTruss
+A [octet truss](https://www.sciencedirect.com/science/article/abs/pii/S0022509601000102) unit cell is made up of a series of octets, triangular pyramids.
+
+![octetTruss](__readMeResources__/octetTruss.png)
+
 
 ### verticalFaceRods   
 X shape on all the faces that are <br>NOT perpendicular to the z axis.
@@ -111,10 +138,7 @@ Struts on all edges of the cube that are parallel to the z axis.
 
 ![zRods](__readMeResources__/zRods.png)
 
-### generalCorner 
-a shape that allows for joining of a unit cell at 90 and 45 degrees about all axis where its scaler value is the size of the unit cell you wish to attach too, See complex example.
 
-![generalCorner](__readMeResources__/generalCorner.png)
 
 ## Properties
 properties of the PLG are defined using the set method to ensure that only the correct type can be used.
@@ -429,7 +453,9 @@ save3mf(obj,'geometryWithSupport.3mf');
 
 Enables splitting of a bad lattice file where beams interesect in space but there is no node present in the file. splitStruts will identify these and split the beams in two.
 
-## radialPLG
+## Conversion to a radial coordinate system
+
+`radialPLG`
 
 Identical to the regular PLG but adds an option to tranform the cartesian coordinate system to a radial one. This is achived by setting the xvalues to the radius and the y values to the theta (in radians). The y values are not changed.
 
