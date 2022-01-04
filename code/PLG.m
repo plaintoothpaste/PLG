@@ -145,7 +145,7 @@ classdef PLG
             strutDiamOut = arrayfun(@(x) obj.strutDiameter, XX,'UniformOutput',0);
             obj.strutDiameter = cell2mat(strutDiamOut(:));
         end
-        function obj = cleanLattice(obj)
+        function obj = cleanLattice(obj,tol)
             % cleanLattice removes coincident vertices and struts.
             %    Due to transformations, replications etc there may be
             %    items that coincide with each other. This function
@@ -155,11 +155,16 @@ classdef PLG
             %
             %    WARNING: may have a strange effect on diameters.
             
-            % tolerance - get the shortest strut and divide by 1000
             verts1 = obj.vertices(obj.struts(:,1),:);
             verts2 = obj.vertices(obj.struts(:,2),:);
             lengthVerts = sum(sqrt((verts1-verts2).^2),2);
-            obj.tolerance = min(lengthVerts)/20;
+            
+            if ~exist('tol','var')
+                obj.tolerance = min(lengthVerts)/20;
+            else
+                obj.tolerance = tol;
+            end
+            
             
             % duplicate vertices
             [obj.vertices,i,indexn]=uniquetol(obj.vertices,obj.tolerance,'ByRows',1,'DataScale',1);
@@ -288,18 +293,6 @@ classdef PLG
             
             % remove any matching struts
             obj = cleanLattice(obj);
-        end
-        function obj = cart2polar(obj)
-            % cart2polar Converts the spacial system
-            %    TODO move to sub class.
-            %    Returns a modified PLG object.
-            rad = obj.vertices(:,1);
-            theta = obj.vertices(:,2);
-            omega = obj.vertices(:,3);
-            
-            obj.vertices(:,1) = rad.*cos(theta).*sin(omega);
-            obj.vertices(:,2) = rad.*sin(theta).*sin(omega);
-            obj.vertices(:,3) = rad.*cos(omega);
         end
     end
     methods % stats and advanced

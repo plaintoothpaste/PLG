@@ -9,6 +9,7 @@ Author(s): Matthew McMillan, David downing, Martin Leary
 TODO
 
 *   [low] better comments in methods - started for PLG.
+*   [critical] fix spherical example
 
 DONE
 
@@ -20,6 +21,7 @@ DONE
 *   [critical] custom -> .lattice file
 *   [critical] update tests to work in the new format.
 *   [critical] other BCC
+
 
 [TOC]
 
@@ -137,7 +139,6 @@ Struts on all edges of the cube that are parallel to the z axis.
 ![zRods](__readMeResources__/zRods.png)
 
 
-## Properties
 properties of the PLG are defined using the set method to ensure that only the correct type can be used.
 ``` matlab
 obj = set(obj,'name',value);
@@ -420,6 +421,7 @@ saveLattice(obj,'complexLattice.lattice');
 ![complexExampleWithSupport](__readMeResources__\complexExample.png)
 
 # Extending the PLG 
+
 In many cases there will be special features that are desireable but outside of the primary scope of the code. to accomadate this a subclass should be made. See `splitStruts` for the most complex example and `radialPLG` for the simplest.
 
 ## Adding Support
@@ -454,7 +456,7 @@ Enables splitting of a bad lattice file where beams interesect in space but ther
 
 `radialPLG`
 
-Identical to the regular PLG but adds an option to tranform the cartesian coordinate system to a radial one. This is achived by setting the xvalues to the radius and the y values to the theta (in radians). The y values are not changed.
+Identical to the regular PLG but adds an option to tranform the cartesian coordinate system to a radial one. This is achived by setting the xvalues to the radius and the y values to the theta (in radians). The z values are not changed.
 
 ```matlab
 obj = radialPLG(); % no input creates an empty object
@@ -485,13 +487,15 @@ When building a lattice in an additive manufacturing system there are constraint
 
 `statisticsPLG`
 
-Will analyse a .lattice file and save data to an excel report. This class is a childclass of `manufacturablePLG`
+Will analyse a .lattice file and save data to an excel report. This class is a child class of `manufacturablePLG`
 
 ```matlab
 # see Conversion to polar coordinates
 ```
 
 ## Conversion to polar coordinates
+
 `sphericalPLG`
+
 This subclass will create 3D polar corrdinates and is best shown with an example in `../results/sphericalLattice.m`. This file is run in `runDemo`
 

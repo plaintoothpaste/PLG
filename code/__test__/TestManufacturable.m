@@ -1,6 +1,6 @@
-classdef TestManufacturabilityColour < matlab.unittest.TestCase
-    %TESTMANUFACTURABILITYCOLOUR test that components of this class behave
-    %as expected
+classdef TestManufacturable < matlab.unittest.TestCase
+    % TestManufacturable test that components of this class behave
+    % as expected
     
     properties
         inputProc = '__test__/resources/basicProcessMap.csv'
@@ -24,7 +24,7 @@ classdef TestManufacturabilityColour < matlab.unittest.TestCase
                 '0.0001,r,r,y,g,g';...
                 '0.5,r,r,r,c,g';...
                 '1,r,r,r,c,g'};
-            actData = manufacturabilityColour.readTables(inData,2,4,6);
+            actData = manufacturablePLG.readTables(inData,2,4,6);
             
             testCase.verifyEqual(actData.dia,[0.2;2]);
             testCase.verifyEqual(actData.span,[1e-4;0.5;1]);
@@ -40,7 +40,7 @@ classdef TestManufacturabilityColour < matlab.unittest.TestCase
                 '0.0001,r,r,y';...
                 '0.5,r,r,r';...
                 '1,r,r,r'};
-            testCase.verifyError(@()manufacturabilityColour.readTables(inData,2,4,4),'manufacturabilityColour:inconsistentTables');
+            testCase.verifyError(@()manufacturablePLG.readTables(inData,2,4,4),'manufacturablePLG:inconsistentTables');
             
             inData = {'0.2,0,10,20';...
                 '0.0001,g,g,g',;...
@@ -50,12 +50,12 @@ classdef TestManufacturabilityColour < matlab.unittest.TestCase
                 '0.0001,r,r,y';...
                 '0.25,r,r,r';...
                 '1,r,r,r'};
-            testCase.verifyError(@()manufacturabilityColour.readTables(inData,2,4,4),'manufacturabilityColour:inconsistentTables');
+            testCase.verifyError(@()manufacturablePLG.readTables(inData,2,4,4),'manufacturablePLG:inconsistentTables');
         end
         function testReadProcessMap(testCase)
             %    testReadProcessMap
             % test that the reading of csv process maps is correct
-            obj = manufacturabilityColour(testCase.inputLattice);
+            obj = manufacturablePLG(testCase.inputLattice);
             actRes = readProcMap(obj,testCase.inputProc);
             
             testCase.verifyEqual(actRes.dia,[0.2;0.5;1;4]);
@@ -67,7 +67,7 @@ classdef TestManufacturabilityColour < matlab.unittest.TestCase
         function testStrutLengthAndIncline(testCase)
             %    testStrutLength
             % test that strutLength and incline are correct
-            obj = manufacturabilityColour(testCase.inputLattice);
+            obj = manufacturablePLG(testCase.inputLattice);
             actRes = testLengthIncline(obj,testCase.inputProc);
             
             testCase.verifyEqual(actRes.dia,[0.1;0.175;0.25;0.325;0.4;0.475;0.55;0.625;0.7;0.775]);
@@ -77,7 +77,7 @@ classdef TestManufacturabilityColour < matlab.unittest.TestCase
             %    testInterpIndex
             % test interpretation of index number
             incer = [1;4;7];
-            obj = manufacturabilityColour(testCase.inputLattice);
+            obj = manufacturablePLG(testCase.inputLattice);
             actRes = testInterpIndex(obj,testCase.inputProc,incer);
             
             testCase.verifyEqual(actRes.inclineI,[1;2;4]);
@@ -88,7 +88,7 @@ classdef TestManufacturabilityColour < matlab.unittest.TestCase
     methods (Test,TestTags = {'integration'})
         function testBasicRun(testCase)
             % test that the colours array is succefully generated
-            obj = manufacturabilityColour(testCase.inputLattice);
+            obj = manufacturablePLG(testCase.inputLattice);
             obj = runManufacturability(obj,testCase.inputProc);
             
             actColours = obj.colour([1,4,7],:);
@@ -97,7 +97,7 @@ classdef TestManufacturabilityColour < matlab.unittest.TestCase
         end
         function testBasicPlot(testCase)
             % test plotting
-            obj = manufacturabilityColour(testCase.inputLattice);
+            obj = manufacturablePLG(testCase.inputLattice);
             obj = runManufacturability(obj,testCase.inputProc);
             
             % warning visual only validation
@@ -123,7 +123,7 @@ classdef TestManufacturabilityColour < matlab.unittest.TestCase
             fid = fopen(testCase.inputProc,'w');
             data = data';
             data = data(:);
-            TestManufacturabilityColour.write2csv(fid,data,6);
+            TestManufacturable.write2csv(fid,data,6);
         end
     end
     methods (TestClassTeardown)
@@ -158,7 +158,7 @@ classdef TestManufacturabilityColour < matlab.unittest.TestCase
                 fprintf(fid,'%d,\n',cData);
             end
             
-            TestManufacturabilityColour.write2csv(fid,data,newLineFreq);
+            TestManufacturable.write2csv(fid,data,newLineFreq);
         end
     end
 end

@@ -4,7 +4,8 @@
 % dualDensityBccLattice();
 % complexExample();
 % addSupportToComplexExample();
-radialLattice();
+% radialLattice();
+sphereLattice(); % warning this example is larger then all the others put together.
 %% each demo is in its own function below
 function mostBasicDemo()
     dia = 1;
@@ -180,6 +181,7 @@ end
 
 function addSupportToComplexExample()
     % save out a version of the complex example with support
+    %    requires complexExample to be run
     diameter = 0.5;
     obj = addSupport('../results/complexLattice.lattice',diameter/4,0,10,0.1); % add support to all points above minZ to minz (that require it)
     obj = padSupport(obj,0.9,diameter/4,0); % extend/add support by a given length with a given strut and ball dia
@@ -205,6 +207,12 @@ function radialLattice()
     obj = translate(obj,12,0,0);
     obj = cart2radial(obj);
     saveStl(obj,'../results/radial.stl');
+end
 
+function sphereLattice()
+    addpath('../results');
 
+    sphericalLattice();
+
+    rmpath('../results');
 end

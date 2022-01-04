@@ -49,6 +49,12 @@ classdef addSupport < PLG
             % has a bug where the original vertice(s) at zmin will also have all their struts
             % coloured
         end
+        function obj = removeStrut(obj,I)
+            % removeStrut, removes a strut by index
+            %    relies on clean lattice
+            obj.struts(I,:) = [];
+            obj.strutDiameter(I) = [];
+        end
     end
     methods (Access=protected)
         function vertsNeedSupport = smartBaseDectection(obj,incline,pen)
