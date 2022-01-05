@@ -124,6 +124,7 @@ Made by combining xRods, yRods and zRods
 
 ![cube](__readMeResources__/xRods_yRods_zRods.png)
 
+# Properties
 
 properties of the PLG are defined using the set method to ensure that only the correct type can be used.
 ``` matlab
