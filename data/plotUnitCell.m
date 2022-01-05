@@ -28,7 +28,7 @@ function [code_location, unit_cell_location, output_location] = pathSetup()
 
     code_location = [runLocation , '/../code'];
     unit_cell_location = [runLocation , '/../code/unitCell'];
-    output_location = runLocation;
+    output_location = [runLocation,'/../results'];
 end
 
 function unit_names = getAllUnitCells(unit_cell_location,unit_names)

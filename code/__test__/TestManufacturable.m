@@ -101,7 +101,7 @@ classdef TestManufacturable < matlab.unittest.TestCase
             obj = runManufacturability(obj,testCase.inputProc);
             
             % warning visual only validation
-            plot(obj,obj.colour);
+            plot(obj);
         end
     end
     methods (TestClassSetup)
