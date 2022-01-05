@@ -6,25 +6,6 @@ These can be built up form basic unit cells as well as transformed scaled and jo
 
 Author(s): Matthew McMillan, David downing, Martin Leary
 
-TODO
-
-*   [low] better comments in methods - started for PLG.
-*   [critical] fix spherical example
-
-DONE
-
-*   [critical] [paper] fill out tech stack table.
-*   [critical] radial code fold in.
-*   [critical] demo for radial.
-*   [medium] fold in david unit cell plots / automate
-*   [critical] test demos in the new format.
-*   [critical] custom -> .lattice file
-*   [critical] update tests to work in the new format.
-*   [critical] other BCC
-
-
-[TOC]
-
 # General use
 
 The general overview of use for the PLG is as follows:
