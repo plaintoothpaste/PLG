@@ -222,11 +222,11 @@ function radialLattice()
 end
 
 function sphereLattice()
-    addpath('../results');
+    addpath('../data');
 
     sphericalLattice();
 
-    rmpath('../results');
+    rmpath('../data');
 end
 
 function plotDemo(obj, file_name)

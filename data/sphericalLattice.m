@@ -6,11 +6,11 @@ function sphericalLattice()
     %% paths and configuration
     %there are a large number of settings so they are stored in a json file
     lattice_path = fileparts(which('sphericalLattice'));
-    spec = jsondecode(fileread([lattice_path,filesep,'spherical/spec.json']));
+    spec = jsondecode(fileread([lattice_path,filesep,'spec.json']));
     % add paths to json structure
     spec.general.path.lattice = lattice_path; 
     spec.general.path.PLG = [spec.general.path.lattice,'/../code'];
-    spec.general.path.saveDirectory = [spec.general.path.lattice,'/spherical'];
+    spec.general.path.saveDirectory = [spec.general.path.lattice,'/../results'];
     spec.general.path.processMap = [spec.general.path.lattice,'/processMap.csv'];
     addpath(spec.general.path.PLG);
     
@@ -139,7 +139,7 @@ function obj = buildSection(f_name,spec,g)
         p = [g.path.PLG,'/unitCell'];
         addpath(p);
         pp = [p,'/',f,'.xml'];
-        lattice2xml([g.path.saveDirectory,filesep,spec.unit{1}],pp);
+        lattice2xml([g.path.lattice,filesep,spec.unit{1}],pp);
         rmpath(p);
         [~,s,~] = fileparts(pp);
         spec.unit = {s};
