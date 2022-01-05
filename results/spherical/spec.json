@@ -11,13 +11,13 @@
         "tolerance":1e-3
     },
     "file_name":{
-        "custom_full":"lattice_sphere.lattice",
-        "custom_segment":"lattice_sphere_seg.lattice",
+        "full":"lattice_sphere.lattice",
+        "segment":"lattice_sphere_seg.lattice",
         "stl_full":"lattice_sphere.stl",
         "stl_segment":"lattice_sphere_seg.stl"
     },
     "build_options":{
-        "segments":false,
+        "segments":true,
         "support":true
     },
     "segments":{

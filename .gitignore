@@ -3,6 +3,6 @@
 *.inp
 *.3mf
 *.asv
-results/*.png
+*.png
 # so that matlab file will not be introduced to git
 *.lic

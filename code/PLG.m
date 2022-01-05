@@ -49,7 +49,6 @@ classdef PLG
                 case 1
                     % import a custom lattice file containing beam and node
                     % definitions see load function for more information
-                    disp('Loading an existing file');
                     obj = load(obj,varargin{1});
                     
                     obj.unitName = varargin{1};

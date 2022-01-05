@@ -40,7 +40,7 @@ The general overview of use for the PLG is as follows:
 
 ```matlab
 % dia, usX,usY,usZ, repX,repY,repZ must be defined to use this example
-obj = PLG() % no input creates an empty object
+obj = PLG(); % no input creates an empty object
 obj = set(obj,'resolution',20);
 obj = set(obj,'sphereResolution',12);
 obj = set(obj,'strutDiameter',dia);
@@ -137,6 +137,11 @@ Struts on all edges of the cube that are parallel to the y axis.
 Struts on all edges of the cube that are parallel to the z axis.
 
 ![zRods](__readMeResources__/zRods.png)
+
+### cube
+Made by combining xRods, yRods and zRods
+
+![cube](__readMeResources__/xRods_yRods_zRods.png)
 
 
 properties of the PLG are defined using the set method to ensure that only the correct type can be used.
@@ -273,13 +278,13 @@ obj = set(obj,'replications',[3,4,5]);
 obj = defineUnit(obj,{'bcc','xRods'});
 obj = cellReplication(obj);
 obj = cleanLattice(obj);
-saveStl(obj,'exampleOut.stl');
+saveStl(obj,'../results/regularBccLattice.stl');
 
 obj = set(obj,'resolution',30);
 obj = set(obj,'sphereResolution',30);
-save3mf(obj,'exampleOut.3mf');
+save3mf(obj,'../results/regularBccLattice.3mf');
 ```
-![flatBase](__readMeResources__\baseFlat.png)
+![Regular BCC lattice.](__readMeResources__/regularBccLattice.png)
 
 ## Dual density BCZ lattice
 A 3x3x6 5mm unit cell BCZ lattice will be created with a higher density strut diameter of 0.8mm on the top and bottom two row and no z struts in the centre two rows with a 0.5mm diameter.
@@ -316,10 +321,11 @@ midLayer = cleanLattice(midLayer);
 obj = bottomLayer + topLayer + midLayer;
 obj = cleanLattice(obj);
 
-saveStl(obj,'exampleOut.stl');
-save3mf(obj,'exampleOut.3mf');
+saveStl(obj,'../results/dualDensityBccLattice.stl');
+save3mf(obj,'../results/dualDensityBccLattice.3mf');
 ```
-![plusExample](__readMeResources__\plusExample.png)
+
+![Dual density BCZ lattice](__readMeResources__/plusExample.png)
 
 ## Unit cell made from lattices
 
@@ -414,11 +420,11 @@ diagYZ = translate(diagYZ,cornerSpacing,0,0);
 obj = objX+objY+objZ+cornerObj+diagXZ+diagYZ;
 obj = cleanLattice(obj);
 obj = set(obj,'sphereResolution',20);
-save3mf(obj,'complexLattice.3mf');
-saveLattice(obj,'complexLattice.lattice');
+save3mf(obj,'../results/complexLattice.3mf');
+saveLattice(obj,'../results/complexLattice.lattice');
 ```
 
-![complexExampleWithSupport](__readMeResources__\complexExample.png)
+![Unit cell made from lattices](__readMeResources__/complexLattice.png)
 
 # Extending the PLG 
 
@@ -436,15 +442,18 @@ This class is not intended for lattice generation but enables the use of the fol
 * padSupport - extends supports a defined a distance below the minimum z height - object handle, pad height, support strutDiameter, support sphereDiameter.
 
 ```matlab
-% save out the example above as a custom file
-obj = addSupport('path2customWithoutSupport.custom',diameter/4,0,10,0.1);
-obj = padSupport(obj,0.9,diameter/4,0);
-obj = set(obj,'sphereResolution',12); % required as a custom file does not specify resolution
+% save out a version of the complex example with support
+%    requires complexExample to be run
+diameter = 0.5;
+obj = addSupport('../results/complexLattice.lattice',diameter/4,0,10,0.1); % add support to all points above minZ to minz (that require it)
+obj = padSupport(obj,0.9,diameter/4,0); % extend/add support by a given length with a given strut and ball dia
+obj = set(obj,'sphereResolution',12);
 obj = set(obj,'resolution',20);
-save3mf(obj,'geometryWithSupport.3mf');
+save3mf(obj,'../results/complexLatticeSupported.3mf');
+obj = set(obj,'baseFlat',true);
+save3mf(obj,'../results/complexLatticeSupportedFlatBall.3mf');
 ```
-![complexExampleWithSupport](__readMeResources__\complexExample.png)
-![complexExampleWithSupportZoom](__readMeResources__\complexExampleZoom.png)
+![Unit cell made from lattices with support zoom](__readMeResources__/complexLatticeSupported_zoom.png)
 
 ## Splitting intersecting struts
 
@@ -459,6 +468,7 @@ Enables splitting of a bad lattice file where beams interesect in space but ther
 Identical to the regular PLG but adds an option to tranform the cartesian coordinate system to a radial one. This is achived by setting the xvalues to the radius and the y values to the theta (in radians). The z values are not changed.
 
 ```matlab
+% create a lattice in a radial format
 obj = radialPLG(); % no input creates an empty object
 obj = set(obj,'resolution',6);
 obj = set(obj,'sphereResolution',6);
@@ -473,6 +483,9 @@ obj = translate(obj,12,0,0);
 obj = cart2radial(obj);
 saveStl(obj,'../results/radial.stl');
 ```
+
+![Simple radial lattice](__readMeResources__/radial.png)
+
 ## Manufacturability plotting
 
 `manufacturablePLG`
@@ -499,3 +512,5 @@ Will analyse a .lattice file and save data to an excel report. This class is a c
 
 This subclass will create 3D polar corrdinates and is best shown with an example in `../results/sphericalLattice.m`. This file is run in `runDemo`
 
+![Segment of sperical lattice](__readMeResources__/lattice_sphere_seg.png)
+![Segment of sperical lattice](__readMeResources__/lattice_sphere.png)

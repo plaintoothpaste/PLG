@@ -5,9 +5,10 @@ function sphericalLattice()
     
     %% paths and configuration
     %there are a large number of settings so they are stored in a json file
-    spec = jsondecode(fileread('spherical/spec.json'));
+    lattice_path = fileparts(which('sphericalLattice'));
+    spec = jsondecode(fileread([lattice_path,filesep,'spherical/spec.json']));
     % add paths to json structure
-    spec.general.path.lattice = fileparts(which('sphericalLattice')); 
+    spec.general.path.lattice = lattice_path; 
     spec.general.path.PLG = [spec.general.path.lattice,'/../code'];
     spec.general.path.saveDirectory = [spec.general.path.lattice,'/spherical'];
     spec.general.path.processMap = [spec.general.path.lattice,'/processMap.csv'];
@@ -36,17 +37,17 @@ function sphericalLattice()
     % put the above sections together
     if spec.build_options.segments || spec.build_options.support
         name_list = [segment_names;spec.support.name];
-        combineSections(name_list,spec.file_name.custom_segment,spec.file_name.custom_full,spec.general);
+        combineSections(name_list,spec.file_name.segment,spec.file_name.full,spec.general);
         
         %plot manufacturability
-        makeImage(spec.file_name.custom_segment,spec.general);
-        
+        makeImage(spec.file_name.segment,spec.general);
+        makeImage(spec.file_name.full,spec.general);
         %calculate statistics
         
     
         % make stl file
-        makeStl(spec.file_name.custom_segment,spec.file_name.stl_segment,spec.general);
-        makeStl(spec.file_name.custom_full,spec.file_name.stl_full,spec.general);
+%         makeStl(spec.file_name.custom_segment,spec.file_name.stl_segment,spec.general);
+%         makeStl(spec.file_name.custom_full,spec.file_name.stl_full,spec.general);
     end
     rmpath(spec.general.path.PLG);
 
@@ -109,6 +110,15 @@ function makeImage(f_name,g)
     
     [~,f_name] = fileparts(f_name);
     a.View = [0,0];
+    f.Units = 'centimeters';
+    f.Position=[3.5, 3.5, 12, 12];
+    f.PaperPositionMode = 'auto';
+    a.FontSize = 7;
+    h=get(a,'Children');
+    set(h,'LineWidth',2);
+    set(h,'MarkerSize',2);
+    grid("on");
+
     print(f,[g.path.saveDirectory,filesep,f_name,'.png'],'-dpng','-r300');
     close(f);
 end % makeImage
@@ -137,8 +147,7 @@ function obj = buildSection(f_name,spec,g)
     obj = defineUnit(obj,spec.unit);
     % replicate and translate
     obj = cellReplication(obj); % requires the replications to be set
-    obj = translate(obj,...
-        g.R + g.unit_size*(1/2-g.reps.radial), pi/g.reps.tangential,r(1) + 1/2*(r(2)-r(1))/spec.reps);
+    obj = translate(obj,g.R + g.unit_size*(1/2-g.reps.radial), pi/g.reps.tangential,r(1) + 1/2*(r(2)-r(1))/spec.reps-pi/2);
     obj = cart2polar(obj);
     
     % duplicate the cap
@@ -177,24 +186,6 @@ function buildSupport(sup,g)
     obj = addSupport(combined_support_name,sup.diameter,sup.diameter,sup.incline,sup.search);
     obj = padSupport(obj,sup.pad,sup.diameter,sup.diameter);
     obj = cleanLattice(obj);
-    % Remove points that are not connected to the outside of the sphere
-    s1 = find(obj.supportVertsType==1);
-    test = arrayfun(@(x) any(x==s1),obj.struts(:,1));
-    s2 = obj.struts(test,2);
-    
-    v2 = obj.vertices(s2,:);
-    
-    % v1 = obj.vertices(s1,:);
-    % plot(obj);
-    % s = scatter3(v1(:,1),v1(:,2),v1(:,3));
-    % s.MarkerFaceColor = 'b';
-    % s = scatter3(v2(:,1),v2(:,2),v2(:,3));
-    % s.MarkerFaceColor = 'g';
-    
-    r = sqrt(sum(v2.^2,2));
-    I = abs(r-g.R)<g.tolerance;
-    s1(I) = [];
-    obj = removeStrut(obj,s1);
     
     saveLattice(obj,combined_support_name);
 end % buildSupport

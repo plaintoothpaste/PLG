@@ -5,6 +5,7 @@
 % names ralative to the unit cell path
 unit_names = {
     {'verticalFaceRods','horizontalFaceRods','xRods','yRods','zRods'};
+    {'xRods','yRods','zRods'};
     };
 
 [code_location, unit_cell_location, output_location] = pathSetup();

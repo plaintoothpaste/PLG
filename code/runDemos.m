@@ -1,10 +1,10 @@
 %% A script that runs all demo files in the readme
-% mostBasicDemo();
-% regularBccLattice();
-% dualDensityBccLattice();
-% complexExample();
-% addSupportToComplexExample();
-% radialLattice();
+mostBasicDemo();
+regularBccLattice();
+dualDensityBccLattice();
+complexExample();
+addSupportToComplexExample();
+radialLattice();
 sphereLattice(); % warning this example is larger then all the others put together.
 %% each demo is in its own function below
 function mostBasicDemo()
@@ -27,6 +27,8 @@ function mostBasicDemo()
     obj = cleanLattice(obj); % remove any vertices and struts that are coincident
     % save(obj); % uses a gui save tool, this is removed in this version for automation reasons
     save3mf(obj,'../results/mostBasicDemo.3mf');
+
+    plotDemo(obj,'../results/mostBasicDemo.png');
 end
 
 function regularBccLattice()
@@ -48,6 +50,8 @@ function regularBccLattice()
     obj = set(obj,'resolution',30);
     obj = set(obj,'sphereResolution',30);
     save3mf(obj,'../results/regularBccLattice.3mf');
+
+    plotDemo(obj,'../results/regularBccLattice.png');
 end
 
 function dualDensityBccLattice()
@@ -84,6 +88,8 @@ function dualDensityBccLattice()
     
     saveStl(obj,'../results/dualDensityBccLattice.stl');
     save3mf(obj,'../results/dualDensityBccLattice.3mf');
+
+    plotDemo(obj,'../results/dualDensityBccLattice.png');
 end
 
 function complexExample()
@@ -177,6 +183,8 @@ function complexExample()
     obj = set(obj,'sphereResolution',20);
     save3mf(obj,'../results/complexLattice.3mf');
     saveLattice(obj,'../results/complexLattice.lattice');
+
+    plotDemo(obj,'../results/complexLattice.png');
 end
 
 function addSupportToComplexExample()
@@ -190,6 +198,8 @@ function addSupportToComplexExample()
     save3mf(obj,'../results/complexLatticeSupported.3mf');
     obj = set(obj,'baseFlat',true);
     save3mf(obj,'../results/complexLatticeSupportedFlatBall.3mf');
+
+    plotDemo(obj,'../results/complexLatticeSupportedFlatBall.png');
 end
 
 function radialLattice()
@@ -207,6 +217,8 @@ function radialLattice()
     obj = translate(obj,12,0,0);
     obj = cart2radial(obj);
     saveStl(obj,'../results/radial.stl');
+
+    plotDemo(obj,'../results/radial.png');
 end
 
 function sphereLattice()
@@ -215,4 +227,21 @@ function sphereLattice()
     sphericalLattice();
 
     rmpath('../results');
+end
+
+function plotDemo(obj, file_name)
+    % plot a image of a demo file
+    [f,a] = plot(obj);
+    view([-5, 2, 1]);
+    f.Units = 'centimeters';
+    f.Position=[3.5, 3.5, 6, 6];
+    f.PaperPositionMode = 'auto';
+    a.FontSize = 7;
+    grid("on");
+    h=get(a,'Children');
+    set(h,'LineWidth',2);
+    set(h,'MarkerSize',2);
+    
+    print(f,file_name,'-dpng','-r300');
+    close(f);
 end

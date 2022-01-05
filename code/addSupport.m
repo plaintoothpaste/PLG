@@ -38,13 +38,13 @@ classdef addSupport < PLG
                 obj.strutDiameter(end+1) = diaStrut;
             end
         end
-        function plot(obj)
+        function [f,a] = plot(obj)
             % plot with the colours of elements different for support
             colours = repmat([0.8,0,0.2],length(obj.strutDiameter),1);
             supportVerts = find(obj.supportVertsType);
             test = arrayfun(@(x) any(x==supportVerts),obj.struts(:,1)) | arrayfun(@(x) any(x==supportVerts),obj.struts(:,2));
             colours(test,:) = repmat([0,0.6,0],sum(test),1);
-            plot@PLG(obj,colours);
+            [f,a] = plot@PLG(obj,colours);
             
             % has a bug where the original vertice(s) at zmin will also have all their struts
             % coloured
