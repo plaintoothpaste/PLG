@@ -19,38 +19,33 @@ function sphericalLattice()
     [segment_names,segment_data] = segmentRetrieve(spec);
     
     % only required if rebuilding segment, see json for setting
-    if spec.build_options.segments
-        for inc = 1:length(segment_names)
-            buildSection(segment_names{inc},segment_data{inc},spec.general); 
-            makeImage(segment_names{inc},spec.general);
-        end
+    for inc = 1:length(segment_names)
+        buildSection(segment_names{inc},segment_data{inc},spec.general);
+        makeImage(segment_names{inc},spec.general);
     end
     
     %% support
     % Add support pins.
-    if spec.build_options.support
-        buildSupport(spec.support,spec.general);
-        makeImage(spec.support.name,spec.general);
-    end
+    buildSupport(spec.support,spec.general);
+    makeImage(spec.support.name,spec.general);
     
     %% full build section
     % put the above sections together
-    if spec.build_options.segments || spec.build_options.support
-        name_list = [segment_names;spec.support.name];
-        combineSections(name_list,spec.file_name.segment,spec.file_name.full,spec.general);
-        
-        %plot manufacturability
-        makeImage(spec.file_name.segment,spec.general);
-        makeImage(spec.file_name.full,spec.general);
-        %calculate statistics
-        
-    
-        % make stl file
-%         makeStl(spec.file_name.custom_segment,spec.file_name.stl_segment,spec.general);
-%         makeStl(spec.file_name.custom_full,spec.file_name.stl_full,spec.general);
-    end
-    rmpath(spec.general.path.PLG);
+    name_list = [segment_names;spec.support.name];
+    combineSections(name_list,spec.file_name.segment,spec.file_name.full,spec.general);
 
+    % plot manufacturability
+    makeImage(spec.file_name.segment,spec.general);
+    makeImage(spec.file_name.full,spec.general);
+
+    %calculate statistics
+    makeStatistics(spec.file_name.full,spec.general);
+
+    % make stl file
+    makeStl(spec.file_name.segment,spec.file_name.stl_segment,spec.general);
+    makeStl(spec.file_name.full,spec.file_name.stl_full,spec.general);
+
+    rmpath(spec.general.path.PLG);
 end
 
 
@@ -222,3 +217,11 @@ function makeStl(file_name_in,file_name_out,g)
     obj = set(obj,'baseFlat',true);
     saveStl(obj,[output_dir,file_name_out]);
 end % makeStl
+
+function makeStatistics(f_name,g)
+    % save out a statistics excel based on f_name
+    obj = statisticsPLG([g.path.saveDirectory,filesep,f_name],g.path.processMap);
+    
+    [~,f_name] = fileparts(f_name);
+    save(obj,[g.path.saveDirectory,filesep,f_name,'.xlsx']);
+end

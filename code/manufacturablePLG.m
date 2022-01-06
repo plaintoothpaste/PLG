@@ -25,8 +25,8 @@ classdef manufacturablePLG < PLG
             %     'c' - likely good
             %     'g' - good
             
-            obj = readProcessMap(obj,file); % load the process map
-            obj = calcInclineAndLength(obj); % calculate length and incline
+            obj = readProcessMap(obj,file); 
+            obj = calcInclineAndLength(obj); 
             
             % get a list of colours
              obj = interpAllColour(obj);
