@@ -16,10 +16,6 @@
         "stl_full":"lattice_sphere.stl",
         "stl_segment":"lattice_sphere_seg.stl"
     },
-    "build_options":{
-        "segments":true,
-        "support":true
-    },
     "segments":{
         "cap_1":{
             "seg":[70,90],

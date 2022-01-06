@@ -6,6 +6,7 @@ complexExample();
 addSupportToComplexExample();
 radialLattice();
 sphereLattice(); % warning this example is larger then all the others put together.
+
 %% each demo is in its own function below
 function mostBasicDemo()
     dia = 1;
