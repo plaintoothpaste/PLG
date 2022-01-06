@@ -475,24 +475,43 @@ saveStl(obj,'../results/radial.stl');
 When building a lattice in an additive manufacturing system there are constraints which typically relate to incline, span and diameter. This extension allows for loading of a csv file that specifies this manufacturability. Then latiice files can be plotted and viewed with manufacturability information overlayed.
 
 ```matlab
-# see Conversion to polar coordinates
+% generic use
+obj = manufacturablePLG(lattice_file_in);
+obj = runManufacturability(oj,process_map_file_in);
+[f,a] = plot(obj); % manufacturability specific plot.
+
+# see Conversion to polar coordinates for specific example
 ```
 
 ## Export of lattice statistics including maxwell number
 
 `statisticsPLG`
 
-Will analyse a .lattice file and save data to an excel report. This class is a child class of `manufacturablePLG`
+Will analyse a .lattice file and save data to an excel report. This class is a child class of `manufacturablePLG`. The data saved inculdes a summary of maxwell number, and the count of struts for each manufacturability rating. A second sheet identifies each struts properties and reports: length, diameter, incline, aspect ratio and manufacturability rating.
+
+**Warning** on non windows operating systems excel writting is not possible. To address this two files will be written in the csv format that represent the same data as each sheet in the excel file.
+
+The two files are:
+- excel_path_out.summary.txt
+- excel_path_out.struts.txt
+
+**Warning** save is overloaded so this class cannot be used to save out a geoemtry file. It is recomended that files generated using the standard PLG first and then loaded into this extension.
+
 
 ```matlab
-# see Conversion to polar coordinates
+% generic use
+obj = statisticsPLG(lattice_file_in,process_map_file_in);
+% save is overloaded so this class cannot save out a new lattice file.
+save(obj,excel_path_out);
+
+# see Conversion to polar coordinates for specific example
 ```
 
 ## Conversion to polar coordinates
 
 `sphericalPLG`
 
-This subclass will create 3D polar corrdinates and is best shown with an example in `../results/sphericalLattice.m`. This file is run in `runDemo`
+This subclass will create 3D polar coordinates and is best shown with an example in `../results/sphericalLattice.m`. This file is run in `runDemo`
 
 ![Segment of sperical lattice](__readMeResources__/lattice_sphere_seg.png)
 ![Segment of sperical lattice](__readMeResources__/lattice_sphere.png)
