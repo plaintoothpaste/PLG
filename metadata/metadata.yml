@@ -1,6 +1,14 @@
 metadata_version: 1
-name: PLG capsule
-description: A software tool to build lattice structures.
+name: Programmatic Lattice Generator (PLG)
+description: The Programmatic Lattice Generator (PLG) is a software tool for generating
+  lattice structures through the repetition of strut based lattice unit cells. The
+  code has an extended library of unit cell topologies and additional functionality.
+  It provides information on connectivity, length, orientation and printability of
+  each strut element. The code has been used to generate lattice geometry for finite
+  element models and additively manufactured parts presented in multiple peer-reviewed
+  journal articles. This software has been extended to include tools that aid in the
+  deployment of optimal AM structures including radial transformations and manufacturability
+  assessment.
 authors:
 - name: Matthew McMillan
   affiliations:

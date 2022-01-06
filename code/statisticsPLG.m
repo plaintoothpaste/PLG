@@ -21,7 +21,13 @@ classdef statisticsPLG < manufacturablePLG
         function save(obj,file_name)
             % save exports the properties to a xlsx file
             %    This method overloads thhe default save behaviour of PLG
-            
+            %    Compatibility warning: This only runs in windows as excel
+            %    is not compatible with linux.
+            %    Fix: On non windows systems two text files:
+            %        1. file_name.summary.txt
+            %        2. file_name.struts.txt
+            %    will be generated.
+
             % Maxwell to output format
             if obj.maxwell_number>0
                 LatBehav='Over-stiff';
@@ -59,10 +65,23 @@ classdef statisticsPLG < manufacturablePLG
             data(:,7) = obj.status;
             data(:,8) = num2cell(obj.aspect);
             
-            %% write all the data
-            xlswrite(file_name,summary_sheet,'Sheet1'); % default sheet
-            xlswrite(file_name,header,'All_struts');
-            xlswrite(file_name,data,'All_struts','A2');
+            if ispc
+                %% write all the data excel
+                xlswrite(file_name,summary_sheet,'Sheet1'); % default sheet
+                xlswrite(file_name,header,'All_struts');
+                xlswrite(file_name,data,'All_struts','A2');
+            else
+                % backup options write to two text files
+                [f_path,name,~] = fileparts(file_name);
+
+                f = [f_path,filesep,name,'.summary.txt'];
+                writecell(summary_sheet,f);
+
+                f = [f_path,filesep,name,'.struts.txt'];
+                out = [header;data];
+                writecell(out,f);
+            end
+            
         end
     end
 
