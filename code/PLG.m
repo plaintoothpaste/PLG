@@ -644,6 +644,9 @@ classdef PLG
             
             % write the individual strut and ball
             xmlObject = threeMfStrut(obj,xmlObject,strutVertices,strutTriangles);
+            if ~obj.sphereAddition
+                obj.sphereResolution = 4;
+            end
             xmlObject = threeMfBall(obj,xmlObject,ballVertices,ballTriangles);
             % if required generate the flat base ball and renumber
             if obj.baseFlat
@@ -664,6 +667,7 @@ classdef PLG
                 % write the flat ball object
                 xmlObject = threemfFlatBall(obj,xmlObject,flatBallVertices,flatBallTriangles);
             end
+
             
             % write out the replications that goes under components
             %replicate the struts throughout space

@@ -410,7 +410,37 @@ saveLattice(obj,'../results/complexLattice.lattice');
 
 # Extending the PLG 
 
-In many cases there will be special features that are desireable but outside of the primary scope of the code. to accomadate this a subclass should be made. See `splitStruts` for the most complex example and `radialPLG` for the simplest.
+In many cases there will be special features that are desirable but outside of the primary scope of the code. to accommodate this a subclass should be made. See `splitStruts` for the most complex example and `radialPLG` for the simplest.
+
+## Custom strut orientation
+
+`strutOrientationPLG` and `statisticsPLG`
+
+```matlab
+% create some vertical rods using `zrods`
+obj = PLG();
+obj = set(obj,'resolution',3);
+obj = set(obj,'strutDiameter',1);
+obj = set(obj,'unitSize',[10,10,10]);
+obj = set(obj,'sphereAddition',false);
+obj = set(obj,'origin',[0,0,0]);
+obj = set(obj,'replications',[10,1,1]);
+obj = defineUnit(obj,{'zRods'});
+obj = cellReplication(obj);
+obj = cleanLattice(obj);
+saveLattice(obj,'../results/strut_orientation_example_1.lattice');
+obj = statisticsPLG('../results/strut_orientation_example_1.lattice','../data/processMap.csv');
+save(obj,'../results/strut_orientation_example_1_stats.xlsx');
+% copy the contents of the lattice file to a excel then add offsets
+% see `../results/strut_orientation_example_1_geometry.xlsx`
+obj = strutOrientationPLG('../results/strut_orientation_example_1_geometry.xlsx');
+obj = set(obj,'sphereAddition',false);
+obj = set(obj,'resolution',3);
+obj = set(obj,'sphereResolution',3);
+saveStl(obj,'../results/strut_orientation_example_1.stl');
+```
+
+
 
 ## Adding Support
 
@@ -487,9 +517,9 @@ obj = runManufacturability(oj,process_map_file_in);
 
 `statisticsPLG`
 
-Will analyse a .lattice file and save data to an excel report. This class is a child class of `manufacturablePLG`. The data saved inculdes a summary of maxwell number, and the count of struts for each manufacturability rating. A second sheet identifies each struts properties and reports: length, diameter, incline, aspect ratio and manufacturability rating.
+Will analyse a .lattice file and save data to an excel report. This class is a child class of `manufacturablePLG`. The data saved includes a summary of Maxwell number, and the count of struts for each manufacturability rating. A second sheet identifies each struts properties and reports: length, diameter, incline, aspect ratio and manufacturability rating.
 
-**Warning** on non windows operating systems excel writting is not possible. To address this two files will be written in the csv format that represent the same data as each sheet in the excel file.
+**Warning** on non windows operating systems excel writing is not possible. To address this two files will be written in the csv format that represent the same data as each sheet in the excel file.
 
 The two files are:
 - excel_path_out.summary.txt
