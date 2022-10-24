@@ -434,9 +434,9 @@ save(obj,'../results/strut_orientation_example_1_stats.xlsx');
 % copy the contents of the lattice file to a excel then add offsets
 % see `../results/strut_orientation_example_1_geometry.xlsx`
 obj = strutOrientationPLG('../results/strut_orientation_example_1_geometry.xlsx');
-obj = set(obj,'sphereAddition',false);
+obj = set(obj,'sphereAddition',true);
 obj = set(obj,'resolution',3);
-obj = set(obj,'sphereResolution',3);
+obj = set(obj,'sphereResolution',12);
 saveStl(obj,'../results/strut_orientation_example_1.stl');
 ```
 

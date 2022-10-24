@@ -25,13 +25,12 @@ classdef strutOrientationPLG < PLG
             obj.struts    = data(numNodes+3:numNodes+numLinks+2,1:2);
             obj.strutDiameter = data(numNodes+3:numNodes+numLinks+2,3);
             obj.strutOrientationOffset = data(numNodes+3:numNodes+numLinks+2,4);
-%             if size(data,2)==3
-%                 % no sphere diameter supplied
-%                 obj.sphereDiameter = zeros(numNodes,1);
-%             else
-%                 % sphere diameter supplied
-%                 obj.sphereDiameter = data(3:numNodes+2,4);
-%             end
+
+            % sphere diameter must be supplied
+            obj.sphereDiameter = data(3:numNodes+2,4);
+            if any(isnan(obj.sphereDiameter))
+                error('PLG:load','With the strutOrientatioPLG extension the sphere diameter must be provided in the input xlsx file.');
+            end
         end
     end
     methods (Access=protected)
